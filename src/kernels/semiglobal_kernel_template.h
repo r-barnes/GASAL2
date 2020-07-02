@@ -1,17 +1,5 @@
 #pragma once
 
-#define CORE_COMPUTE_SEMIGLOBAL_DEPRECATED() \
-	uint32_t gbase = (gpac >> l) & 15;/*get a base from target_batch sequence*/\
-	DEV_GET_SUB_SCORE_GLOBAL(subScore, rbase, gbase);/*check the equality of rbase and gbase*/\
-	/*int32_t curr_hm_diff = h[m] - _cudaGapOE;*/\
-	f[m] = max(h[m]- _cudaGapOE, f[m] - _cudaGapExtend);/*whether to introduce or extend a gap in query_batch sequence*/\
-	h[m] = p[m] + subScore;/*score if gbase is aligned to rbase*/\
-	h[m] = max(h[m], f[m]);\
-	e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);/*whether to introduce or extend a gap in target_batch sequence*/\
-	/*prev_hm_diff=curr_hm_diff;*/\
-	h[m] = max(h[m], e);\
-	p[m] = h[m-1];
-
 #define CORE_COMPUTE_SEMIGLOBAL() \
     uint32_t gbase = (gpac >> l) & 15; /* get a base from target_batch sequence */ \
     DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);/* check equality of rbase and gbase */\

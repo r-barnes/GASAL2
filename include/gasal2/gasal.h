@@ -19,18 +19,6 @@
 		}while(0)\
 
 
-inline int CudaCheckKernelLaunch()
-{
-	cudaError err = cudaGetLastError();
-	if ( cudaSuccess != err )
-	{
-		return -1;
-	}
-
-	return 0;
-}
-
-
 enum comp_start{
 	WITHOUT_START,
 	WITH_START,

@@ -1,19 +1,5 @@
 #pragma once
 
-// This old core provides the same result as the currently LOCAL core, but lacks some optimization. Left for historical / comparative purposes.
-#define CORE_LOCAL_DEPRECATED_COMPUTE() \
-		uint32_t gbase = (gpac >> l) & 15;/*get a base from target_batch sequence */ \
-		DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);/* check equality of rbase and gbase */ \
-		f[m] = max(h[m]- _cudaGapOE, f[m] - _cudaGapExtend);/* whether to introduce or extend a gap in query_batch sequence */ \
-		h[m] = p[m] + subScore; /*score if rbase is aligned to gbase*/ \
-		h[m] = max(h[m], f[m]); \
-		h[m] = max(h[m], 0); \
-		e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);/*whether to introduce or extend a gap in target_batch sequence */\
-		h[m] = max(h[m], e); \
-		maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y; \
-		maxHH = (maxHH < h[m]) ? h[m] : maxHH; \
-		p[m] = h[m-1];
-
 #define CORE_LOCAL_COMPUTE() \
 		uint32_t gbase = (gpac >> l) & 15;\
 		DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase) \

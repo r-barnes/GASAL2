@@ -27,28 +27,6 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, Parameters *params)
 		res->target_batch_start = NULL;
 		res->query_batch_end = NULL;
 		res->target_batch_end = NULL;
-		/*
-		// Deprecated. For semi-global you now need to know the start and stop positions.
-		} else if (params->algo == SEMI_GLOBAL) {
-		res->host_query_batch_start = NULL;
-		res->host_query_batch_end = NULL;
-		res->query_batch_start = NULL;
-		res->query_batch_end = NULL;
-
-		if (params->start_pos == WITH_START) {
-		CHECKCUDAERROR(cudaHostAlloc(&(res->host_target_batch_start),max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(cudaHostAlloc(&(res->host_target_batch_end),max_n_alns * sizeof(uint32_t)));
-
-		CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(
-		cudaMalloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t)));
-		} else {
-		CHECKCUDAERROR(cudaHostAlloc(&(res->host_target_batch_end),max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t)));
-		res->host_target_batch_start = NULL;
-		res->target_batch_start = NULL;
-		}
-		 */
 	} else {
 		if (params->start_pos == WITH_START || params->start_pos == WITH_TB) {
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
