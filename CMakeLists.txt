@@ -12,6 +12,16 @@ if(CCACHE_FOUND)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache) # Less useful to do it for linking, see edit2
 endif(CCACHE_FOUND)
 
+if(MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+    $<$<COMPILE_LANGUAGE:CXX>:-pedantic>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+  )
+endif()
+
 add_library(gasal2
   src/args_parser.cpp
   src/host_batch.cpp
