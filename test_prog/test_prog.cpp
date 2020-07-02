@@ -32,9 +32,6 @@ int main(int argc, char **argv) {
   args.parse();
   args.print();
 
-  const int print_out = args.print_out;
-  const int n_threads = args.n_threads;
-
   //--------------copy substitution scores to GPU--------------------
   gasal_subst_scores sub_scores;
   sub_scores.match      = args.match_score;
@@ -82,14 +79,14 @@ int main(int argc, char **argv) {
     std::cerr << std::endl;
   #endif
 
-  auto *const thread_seqs_idx  = new int[n_threads];
-  auto *const thread_n_seqs    = new int[n_threads];
-  auto *const thread_n_batchs  = new int[n_threads];
-  auto *const thread_misc_time = new double[n_threads];
+  auto *const thread_seqs_idx  = new int[args.n_threads];
+  auto *const thread_n_seqs    = new int[args.n_threads];
+  auto *const thread_n_batchs  = new int[args.n_threads];
+  auto *const thread_misc_time = new double[args.n_threads];
 
-  size_t thread_batch_size = (int)ceil((double)total_seqs/n_threads);
+  size_t thread_batch_size = (int)ceil((double)total_seqs/args.n_threads);
   size_t n_seqs_alloc = 0;
-  for (int i = 0; i < n_threads; i++){//distribute the sequences among the threads equally
+  for (int i = 0; i < args.n_threads; i++){//distribute the sequences among the threads equally
     thread_seqs_idx[i] = n_seqs_alloc;
     if (n_seqs_alloc + thread_batch_size < total_seqs) thread_n_seqs[i] = thread_batch_size;
     else thread_n_seqs[i] = total_seqs - n_seqs_alloc;
@@ -101,9 +98,9 @@ int main(int argc, char **argv) {
 
   Timer total_time;
   total_time.start();
-  omp_set_num_threads(n_threads);
-  auto *const gpu_storage_vecs = new gasal_gpu_storage_v[n_threads];
-  for (int z = 0; z < n_threads; z++) {
+  omp_set_num_threads(args.n_threads);
+  auto *const gpu_storage_vecs = new gasal_gpu_storage_v[args.n_threads];
+  for (int z = 0; z < args.n_threads; z++) {
     gpu_storage_vecs[z] = gasal_init_gpu_storage_v(NB_STREAMS);// creating NB_STREAMS streams per thread
 
     /*
@@ -246,7 +243,7 @@ int main(int argc, char **argv) {
                                           //of the finished streams.
         if (gasal_is_aln_async_done(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage) == 0) {
           int j = 0;
-          if(print_out) {
+          if(args.print_out) {
           #pragma omp critical
           for (int i = gpu_batch_arr[gpu_batch_arr_idx].batch_start; j < gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch; i++, j++) {
 
@@ -323,7 +320,7 @@ int main(int argc, char **argv) {
 
   }
 
-  for (int z = 0; z < n_threads; z++) {
+  for (int z = 0; z < args.n_threads; z++) {
     gasal_destroy_streams(&(gpu_storage_vecs[z]), args);
     gasal_destroy_gpu_storage_v(&(gpu_storage_vecs[z]));
   }
@@ -338,8 +335,8 @@ int main(int argc, char **argv) {
   */
 
   double av_misc_time = 0.0;
-  for (int i = 0; i < n_threads; ++i){
-    av_misc_time += (thread_misc_time[i]/n_threads);
+  for (int i = 0; i < args.n_threads; ++i){
+    av_misc_time += (thread_misc_time[i]/args.n_threads);
   }
 
   std::cerr << std::endl << "Done" << std::endl;
