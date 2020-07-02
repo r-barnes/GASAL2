@@ -10,7 +10,7 @@
 
 host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 {
-	host_batch_t *const res = (host_batch_t *)calloc(1, sizeof(host_batch_t));
+	auto *const res = new host_batch_t();
 	CHECKCUDAERROR(cudaHostAlloc(&(res->data), batch_bytes*sizeof(uint8_t), cudaHostAllocDefault));
 	res->page_size = batch_bytes;
 	res->data_size = 0;

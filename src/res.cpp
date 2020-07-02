@@ -6,17 +6,9 @@
 
 gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 {
-
-	gasal_res_t *const res = (gasal_res_t *)malloc(sizeof(gasal_res_t));
+	auto *const res = new gasal_res_t();
 
 	CHECKCUDAERROR(cudaHostAlloc(&(res->aln_score), max_n_alns * sizeof(int32_t),cudaHostAllocDefault));
-
-	if(!res)
-	{
-		std::cerr<<"Malloc error on res host"<<std::endl;
-		exit(1);
-	}
-
 
 	if (params.algo == GLOBAL) {
 		res->query_batch_start = nullptr;

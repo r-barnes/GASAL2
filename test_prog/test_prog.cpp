@@ -149,10 +149,10 @@ int main(int argc, char **argv) {
 
 
 	// transforming the _mod into a char* array (to be passed to GASAL, which deals with C types)
-	uint8_t *target_seq_mod = (uint8_t*) malloc(total_seqs * sizeof(uint8_t) );
-	uint8_t *query_seq_mod  = (uint8_t*) malloc(total_seqs * sizeof(uint8_t) );
-	uint32_t *target_seq_id = (uint32_t*) malloc(total_seqs * sizeof(uint32_t) );
-	uint32_t *query_seq_id  = (uint32_t*) malloc(total_seqs * sizeof(uint32_t) );
+	auto *const target_seq_mod = new uint8_t [total_seqs];
+	auto *const query_seq_mod  = new uint8_t [total_seqs];
+	auto *const target_seq_id  = new uint32_t[total_seqs];
+	auto *const query_seq_id   = new uint32_t[total_seqs];
 
 	for (int i = 0; i < total_seqs; i++)
 	{
@@ -177,10 +177,10 @@ int main(int argc, char **argv) {
 		target_seq_id[i] = target_id.at(i);
 	}
 
-	int *thread_seqs_idx = (int*)malloc(n_threads*sizeof(int));
-	int *thread_n_seqs = (int*)malloc(n_threads*sizeof(int));
-	int *thread_n_batchs = (int*)malloc(n_threads*sizeof(int));
-	double *thread_misc_time = (double*)calloc(n_threads, sizeof(double));
+	auto *const thread_seqs_idx  = new int[n_threads];
+	auto *const thread_n_seqs    = new int[n_threads];
+	auto *const thread_n_batchs  = new int[n_threads];
+	auto *const thread_misc_time = new double[n_threads];
 
 	int thread_batch_size = (int)ceil((double)total_seqs/n_threads);
 	int n_seqs_alloc = 0;
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
 	Timer total_time;
 	total_time.Start();
 	omp_set_num_threads(n_threads);
-	gasal_gpu_storage_v *gpu_storage_vecs =  (gasal_gpu_storage_v*)calloc(n_threads, sizeof(gasal_gpu_storage_v));
+	auto *const gpu_storage_vecs = new gasal_gpu_storage_v[n_threads];
 	for (int z = 0; z < n_threads; z++) {
 		gpu_storage_vecs[z] = gasal_init_gpu_storage_v(NB_STREAMS);// creating NB_STREAMS streams per thread
 
