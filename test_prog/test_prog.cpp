@@ -32,19 +32,19 @@ int main(int argc, char **argv) {
   args.parse();
   args.print();
 
-  int print_out = args.print_out;
-  int n_threads = args.n_threads;
+  const int print_out = args.print_out;
+  const int n_threads = args.n_threads;
 
   //--------------copy substitution scores to GPU--------------------
   gasal_subst_scores sub_scores;
+  sub_scores.match      = args.match_score;
+  sub_scores.mismatch   = args.mismatch_score;
+  sub_scores.gap_open   = args.gap_open_score;
+  sub_scores.gap_extend = args.gap_ext_score;
 
-  sub_scores.match = args.sa;
-  sub_scores.mismatch = args.sb;
-  sub_scores.gap_open = args.gapo;
-  sub_scores.gap_extend = args.gape;
+  gasal_copy_subst_scores(sub_scores);
 
-  gasal_copy_subst_scores(&sub_scores);
-
+  //Read input data
   const auto input_data = ReadFastaQueryTargetPair(
     args.query_batch_fasta_filename,
     args.target_batch_fasta_filename

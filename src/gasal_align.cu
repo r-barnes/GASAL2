@@ -340,11 +340,12 @@ int gasal_is_aln_async_done(gasal_gpu_storage_t *gpu_storage)
 }
 
 
-void gasal_copy_subst_scores(gasal_subst_scores *subst){
-	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapO, &(subst->gap_open), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
-	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapExtend, &(subst->gap_extend), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
-	int32_t gapoe = (subst->gap_open + subst->gap_extend);
-	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapOE, &(gapoe), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
-	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaMatchScore, &(subst->match), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
-	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaMismatchScore, &(subst->mismatch), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
+
+void gasal_copy_subst_scores(const gasal_subst_scores &subst){
+	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapO,          &(subst.gap_open),   sizeof(int32_t), 0, cudaMemcpyHostToDevice));
+	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapExtend,     &(subst.gap_extend), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
+	const auto gapoe = subst.gap_open + subst.gap_extend;
+	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapOE,         &(gapoe),            sizeof(int32_t), 0, cudaMemcpyHostToDevice));
+	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaMatchScore,    &(subst.match),      sizeof(int32_t), 0, cudaMemcpyHostToDevice));
+	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaMismatchScore, &(subst.mismatch),   sizeof(int32_t), 0, cudaMemcpyHostToDevice));
 }

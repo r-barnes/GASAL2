@@ -107,7 +107,7 @@ break;
     break;
 
 
-void gasal_copy_subst_scores(gasal_subst_scores *subst);
+void gasal_copy_subst_scores(const gasal_subst_scores &subst);
 
 void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_query_batch_bytes, const uint32_t actual_target_batch_bytes, const uint32_t actual_n_alns, const Parameters *params);
 

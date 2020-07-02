@@ -20,10 +20,10 @@ class Parameters{
         void help();
         void parse();
 
-        int32_t sa   = 1;
-        int32_t sb   = 4;
-        int32_t gapo = 6;
-        int32_t gape = 1;
+        int32_t match_score   = 1;
+        int32_t mismatch_score   = 4;
+        int32_t gap_open_score = 6;
+        int32_t gap_ext_score = 1;
         comp_start start_pos = WITHOUT_START;
         int print_out  = 0;
         int n_threads  = 1;

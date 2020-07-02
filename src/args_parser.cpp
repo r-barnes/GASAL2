@@ -11,7 +11,7 @@ Parameters::Parameters(int argc_, char **argv_) {
 }
 
 void Parameters::print() {
-    std::cerr <<  "sa=" << sa <<" , sb=" << sb <<" , gapo=" <<  gapo << " , gape="<<gape << std::endl;
+    std::cerr <<  "sa=" << match_score <<" , sb=" << mismatch_score <<" , gapo=" <<  gap_open_score << " , gape="<<gap_ext_score << std::endl;
     std::cerr <<  "start_pos=" << start_pos <<" , print_out=" << print_out <<" , n_threads=" <<  n_threads << std::endl;
     std::cerr <<  "semiglobal_skipping_head=" << semiglobal_skipping_head <<" , semiglobal_skipping_tail=" << semiglobal_skipping_tail <<" , algo=" <<  algo << std::endl;
     std::cerr <<  std::boolalpha << "isPacked = " << isPacked  << " , secondBest = " << secondBest << std::endl;
@@ -39,10 +39,10 @@ void Parameters::failure(fail_type f) {
 
 void Parameters::help() {
             std::cerr << "Usage: ./test_prog.out [-a] [-b] [-q] [-r] [-s] [-t] [-p] [-n] [-y] <query_batch.fasta> <target_batch.fasta>" << std::endl;
-            std::cerr << "Options: -a INT    match score ["<< sa <<"]" << std::endl;
-            std::cerr << "         -b INT    mismatch penalty [" << sb << "]"<< std::endl;
-            std::cerr << "         -q INT    gap open penalty [" << gapo << "]" << std::endl;
-            std::cerr << "         -r INT    gap extension penalty ["<< gape <<"]" << std::endl;
+            std::cerr << "Options: -a INT    match score ["<< match_score <<"]" << std::endl;
+            std::cerr << "         -b INT    mismatch penalty [" << mismatch_score << "]"<< std::endl;
+            std::cerr << "         -q INT    gap open penalty [" << gap_open_score << "]" << std::endl;
+            std::cerr << "         -r INT    gap extension penalty ["<< gap_ext_score <<"]" << std::endl;
             std::cerr << "         -s        find the start position" << std::endl;
             std::cerr << "         -t        compute traceback. With this option enabled, \"-s\" has no effect as start position will always be computed with traceback" << std::endl;
             std::cerr << "         -p        print the alignment results" << std::endl;
@@ -119,22 +119,22 @@ void Parameters::parse() {
                 case 'a':
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
-                    sa = std::stoi(arg_next);
+                    match_score = std::stoi(arg_next);
                 break;
                 case 'b':
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
-                    sb = std::stoi(arg_next);
+                    mismatch_score = std::stoi(arg_next);
                 break;
                 case 'q':
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
-                    gapo = std::stoi(arg_next);
+                    gap_open_score = std::stoi(arg_next);
                 break;
                 case 'r':
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
-                    gape = std::stoi(arg_next);
+                    gap_ext_score = std::stoi(arg_next);
                 break;
                 case 's':
                     start_pos = WITH_START;
