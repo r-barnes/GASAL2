@@ -2,7 +2,7 @@
 
 #include "gasal.h"
 
-#include <fstream>
+#include <string>
 
 enum fail_type {
     NOT_ENOUGH_ARGS,
@@ -15,12 +15,10 @@ enum fail_type {
 class Parameters{
     public:
         Parameters(int argc, char** argv);
-        ~Parameters();
         void print();
         void failure(fail_type f);
         void help();
         void parse();
-        void fileopen();
 
         int32_t sa   = 1;
         int32_t sb   = 4;
@@ -43,9 +41,6 @@ class Parameters{
 
         std::string query_batch_fasta_filename = "";
         std::string target_batch_fasta_filename = "";
-
-        std::ifstream query_batch_fasta;
-        std::ifstream target_batch_fasta;
 
     private:
         int argc;

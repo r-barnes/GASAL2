@@ -10,11 +10,6 @@ Parameters::Parameters(int argc_, char **argv_) {
     argv = argv_;
 }
 
-Parameters::~Parameters() {
-    query_batch_fasta.close();
-    target_batch_fasta.close();
-}
-
 void Parameters::print() {
     std::cerr <<  "sa=" << sa <<" , sb=" << sb <<" , gapo=" <<  gapo << " , gape="<<gape << std::endl;
     std::cerr <<  "start_pos=" << start_pos <<" , print_out=" << print_out <<" , n_threads=" <<  n_threads << std::endl;
@@ -63,7 +58,6 @@ void Parameters::help() {
 
 
 void Parameters::parse() {
-
     // before testing anything, check if calling for help.
     int c;
 
@@ -206,17 +200,4 @@ void Parameters::parse() {
     query_batch_fasta_filename = std::string( (const char*)  (*(argv + c) ) );
     c++;
     target_batch_fasta_filename = std::string( (const char*) (*(argv + c) ) );
-
-    // Parameters retrieved successfully, open files.
-    fileopen();
-}
-
-void Parameters::fileopen() {
-    query_batch_fasta.open(query_batch_fasta_filename, std::ifstream::in);
-    if (!query_batch_fasta)
-        failure(WRONG_FILES);
-
-    target_batch_fasta.open(target_batch_fasta_filename);
-    if (!target_batch_fasta)
-        failure(WRONG_FILES);
 }
