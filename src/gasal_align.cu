@@ -19,7 +19,61 @@ inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type 
 		default:
 		break;
 	}
+}
 
+
+void check_gasal_aln_async_inputs(
+	gasal_gpu_storage_t *gpu_storage,
+	const uint32_t actual_query_batch_bytes,
+	const uint32_t actual_target_batch_bytes,
+	const uint32_t actual_n_alns,
+	const Parameters *params
+){
+	bool failed = false;
+
+	if (actual_n_alns <= 0) {
+		fprintf(stderr, "[GASAL ERROR:] actual_n_alns <= 0\n");
+		failed = true;
+	}
+
+	if (actual_query_batch_bytes <= 0) {
+		fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes <= 0\n");
+		failed = true;
+	}
+
+	if (actual_target_batch_bytes <= 0) {
+		fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes <= 0\n");
+		failed = true;
+	}
+
+	if (actual_query_batch_bytes % 8) {
+		fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes=%d is not a multiple of 8\n", actual_query_batch_bytes);
+		failed = true;
+	}
+
+	if (actual_target_batch_bytes % 8) {
+		fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes=%d is not a multiple of 8\n", actual_target_batch_bytes);
+		failed = true;
+	}
+
+	if (actual_query_batch_bytes > gpu_storage->host_max_query_batch_bytes) {
+		fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes(%d) > host_max_query_batch_bytes(%d)\n", actual_query_batch_bytes, gpu_storage->host_max_query_batch_bytes);
+		failed = true;
+	}
+
+	if (actual_target_batch_bytes > gpu_storage->host_max_target_batch_bytes) {
+		fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes(%d) > host_max_target_batch_bytes(%d)\n", actual_target_batch_bytes, gpu_storage->host_max_target_batch_bytes);
+		failed = true;
+	}
+
+	if (actual_n_alns > gpu_storage->host_max_n_alns) {
+		fprintf(stderr, "[GASAL ERROR:] actual_n_alns(%d) > host_max_n_alns(%d)\n", actual_n_alns, gpu_storage->host_max_n_alns);
+		failed = true;
+	}
+
+	if(failed){
+		exit(EXIT_FAILURE);
+	}
 }
 
 
@@ -30,43 +84,8 @@ void gasal_aln_async(
 	const uint32_t actual_target_batch_bytes,
 	const uint32_t actual_n_alns,
 	const Parameters *params
-) {
-	if (actual_n_alns <= 0) {
-		fprintf(stderr, "[GASAL ERROR:] actual_n_alns <= 0\n");
-		exit(EXIT_FAILURE);
-	}
-	if (actual_query_batch_bytes <= 0) {
-		fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes <= 0\n");
-		exit(EXIT_FAILURE);
-	}
-	if (actual_target_batch_bytes <= 0) {
-		fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes <= 0\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (actual_query_batch_bytes % 8) {
-		fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes=%d is not a multiple of 8\n", actual_query_batch_bytes);
-		exit(EXIT_FAILURE);
-	}
-	if (actual_target_batch_bytes % 8) {
-		fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes=%d is not a multiple of 8\n", actual_target_batch_bytes);
-		exit(EXIT_FAILURE);
-	}
-
-	if (actual_query_batch_bytes > gpu_storage->host_max_query_batch_bytes) {
-				fprintf(stderr, "[GASAL ERROR:] actual_query_batch_bytes(%d) > host_max_query_batch_bytes(%d)\n", actual_query_batch_bytes, gpu_storage->host_max_query_batch_bytes);
-				exit(EXIT_FAILURE);
-	}
-
-	if (actual_target_batch_bytes > gpu_storage->host_max_target_batch_bytes) {
-			fprintf(stderr, "[GASAL ERROR:] actual_target_batch_bytes(%d) > host_max_target_batch_bytes(%d)\n", actual_target_batch_bytes, gpu_storage->host_max_target_batch_bytes);
-			exit(EXIT_FAILURE);
-	}
-
-	if (actual_n_alns > gpu_storage->host_max_n_alns) {
-			fprintf(stderr, "[GASAL ERROR:] actual_n_alns(%d) > host_max_n_alns(%d)\n", actual_n_alns, gpu_storage->host_max_n_alns);
-			exit(EXIT_FAILURE);
-	}
+){
+	check_gasal_aln_async_inputs(gpu_storage, actual_query_batch_bytes, actual_target_batch_bytes, actual_n_alns, params);
 
 	//--------------if pre-allocated memory is less, allocate more--------------------------
 	if (gpu_storage->gpu_max_query_batch_bytes < actual_query_batch_bytes) {
