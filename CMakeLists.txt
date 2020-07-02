@@ -29,7 +29,10 @@ add_library(gasal2
   src/interfaces.cpp
   src/res.cpp
   src/gasal_align.cu
+  src/kernels/pack_rc_seqs.cu
+  src/kernels/banded.cu
 )
+target_include_directories(gasal2 PUBLIC include src)
 
 set(MAX_QUERY_LEN "1024" CACHE STRING "Maximum query length")
 set(N_CODE "0x4E" CACHE STRING "Code for non-based value N")
@@ -56,8 +59,6 @@ set_target_properties(gasal2 PROPERTIES
   CXX_STANDARD 14
   CXX_STANDARD_REQUIRED YES
 )
-
-target_include_directories(gasal2 PUBLIC include src)
 
 
 

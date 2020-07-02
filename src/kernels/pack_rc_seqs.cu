@@ -1,4 +1,4 @@
-#pragma once
+#include <gasal2/gasal_kernels.h>
 
 #include <cstdint>
 
@@ -8,10 +8,16 @@
 #define T_PAK ('T'&0x0F)
 //#define N_PAK ('N'&0x0F)
 
-
-
-__global__ void gasal_pack_kernel(uint32_t* unpacked_query_batch, uint32_t* unpacked_target_batch, uint32_t *packed_query_batch, uint32_t* packed_target_batch, int query_batch_tasks_per_thread, int target_batch_tasks_per_thread, uint32_t total_query_batch_regs, uint32_t total_target_batch_regs) \
-{
+__global__ void gasal_pack_kernel(
+	uint32_t* unpacked_query_batch,
+	uint32_t* unpacked_target_batch,
+	uint32_t *packed_query_batch,
+	uint32_t* packed_target_batch,
+	int query_batch_tasks_per_thread,
+	int target_batch_tasks_per_thread,
+	uint32_t total_query_batch_regs,
+	uint32_t total_target_batch_regs
+){
 	const int32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;//thread ID
 	uint32_t n_threads = gridDim.x * blockDim.x;
 	for (int32_t i = 0; i < query_batch_tasks_per_thread &&  (((i*n_threads)<<1) + (tid<<1) < total_query_batch_regs); ++i) {

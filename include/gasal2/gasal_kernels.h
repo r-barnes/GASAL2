@@ -64,10 +64,10 @@ maxHH = (maxHH < curr) ? curr : maxHH;
 
 // Kernel files
 
-#include "kernels/pack_rc_seqs.h"
-#include "kernels/global.h"
-#include "kernels/semiglobal_kernel_template.h"
-#include "kernels/local_kernel_template.h"
-#include "kernels/banded.h"
-#include "kernels/ksw_kernel_template.h"
-#include "kernels/get_tb.h"
+#include "kernels/pack_rc_seqs.cuh"
+#include "kernels/global.cuh"
+#include "kernels/semiglobal_kernel_template.cuh"
+#include "kernels/local_kernel_template.cuh"
+#include "kernels/banded.cuh"
+#include "kernels/ksw_kernel_template.cuh"
+#include "kernels/get_tb.cuh"

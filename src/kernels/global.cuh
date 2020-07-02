@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gasal2/gasal.h>
+
 #define CORE_GLOBAL_COMPUTE() \
 		uint32_t gbase = (gpac >> l) & 15;\
 		DEV_GET_SUB_SCORE_GLOBAL(subScore, rbase, gbase);\
