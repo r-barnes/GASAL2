@@ -379,12 +379,11 @@ int main(int argc, char **argv) {
 
 						if (args->start_pos == WITH_TB) {
 							std::cout << "\tCIGAR=";
-							int u;
 							int offset = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j];
 							int n_cigar_ops = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->n_cigar_ops[j];
 							int last_op = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + n_cigar_ops - 1]) & 3;
 							int count = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + n_cigar_ops - 1]) >> 2;
-							for (u = n_cigar_ops - 2; u >= 0 ; u--){
+							for (int u = n_cigar_ops - 2; u >= 0 ; u--){
 								int curr_op = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + u]) & 3;
 								if (curr_op == last_op) {
 									count +=  ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + u]) >> 2;

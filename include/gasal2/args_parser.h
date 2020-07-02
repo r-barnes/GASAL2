@@ -13,7 +13,6 @@ enum fail_type {
 };
 
 class Parameters{
-
     public:
         Parameters(int argc, char** argv);
         ~Parameters();
@@ -22,8 +21,6 @@ class Parameters{
         void help();
         void parse();
         void fileopen();
-
-
 
         int32_t sa;
         int32_t sb;
@@ -49,9 +46,6 @@ class Parameters{
 
         std::ifstream query_batch_fasta;
         std::ifstream target_batch_fasta;
-
-
-    protected:
 
     private:
         int argc;

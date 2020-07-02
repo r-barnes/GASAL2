@@ -21,7 +21,6 @@ gasal_gpu_storage_v gasal_init_gpu_storage_v(int n_streams) {
 void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns,  Parameters *params) {
 
 	cudaError_t err;
-	int i;
 	int max_query_len_8 = max_query_len % 8 ? max_query_len + (8 - (max_query_len % 8)) : max_query_len;
 	int max_target_len_8 = max_target_len % 8 ? max_target_len + (8 - (max_target_len % 8)) : max_target_len;
 
@@ -34,7 +33,7 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 
 
 
-	for (i = 0; i < gpu_storage_vec->n; i++) {
+	for (int i = 0; i < gpu_storage_vec->n; i++) {
 
 		gpu_storage_vec->a[i].extensible_host_unpacked_query_batch = gasal_host_batch_new(host_max_query_batch_bytes, 0);
 		gpu_storage_vec->a[i].extensible_host_unpacked_target_batch = gasal_host_batch_new(host_max_target_batch_bytes, 0);
@@ -123,11 +122,9 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 }
 
 void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *params) {
-
 	cudaError_t err;
 
-	int i;
-	for (i = 0; i < gpu_storage_vec->n; i ++) {
+	for (int i = 0; i < gpu_storage_vec->n; i ++) {
 
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_query_batch);
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_target_batch);
@@ -160,8 +157,6 @@ void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *par
 		if (gpu_storage_vec->a[i].host_res->cigar != NULL) CHECKCUDAERROR(cudaFreeHost(gpu_storage_vec->a[i].host_res->cigar));
 
 
-
-
 		if (gpu_storage_vec->a[i].unpacked_query_batch != NULL) CHECKCUDAERROR(cudaFree(gpu_storage_vec->a[i].unpacked_query_batch));
 		if (gpu_storage_vec->a[i].unpacked_target_batch != NULL) CHECKCUDAERROR(cudaFree(gpu_storage_vec->a[i].unpacked_target_batch));
 		if (!(params->isPacked))
@@ -179,13 +174,9 @@ void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *par
 
 		if (gpu_storage_vec->a[i].str != NULL)CHECKCUDAERROR(cudaStreamDestroy(gpu_storage_vec->a[i].str));
 	}
-
-
-
 }
 
 
 void gasal_destroy_gpu_storage_v(gasal_gpu_storage_v *gpu_storage_vec) {
-
 	if(gpu_storage_vec->a != NULL) free(gpu_storage_vec->a);
 }

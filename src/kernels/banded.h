@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 // These two macros are used for the fixed-band kernel, which provides lots of wrong results. They are unused.
 #define BAND_SIZE (24)
 #define __MOD(a) (a & (BAND_SIZE-1))
