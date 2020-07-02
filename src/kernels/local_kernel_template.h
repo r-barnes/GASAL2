@@ -491,13 +491,5 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
         device_res->query_batch_start[tid] = maxXY_x;//copy the start position on query_batch sequence to the output array in the GPU mem
         device_res->target_batch_start[tid] = maxXY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
-
     }
-
-
-
-
-	return;
-
-
 }

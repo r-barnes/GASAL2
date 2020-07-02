@@ -26,7 +26,6 @@ inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type 
 
 //GASAL2 asynchronous (a.k.a non-blocking) alignment function
 void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_query_batch_bytes, const uint32_t actual_target_batch_bytes, const uint32_t actual_n_alns, Parameters *params) {
-
 	cudaError_t err;
 	if (actual_n_alns <= 0) {
 		fprintf(stderr, "[GASAL ERROR:] actual_n_alns <= 0\n");
@@ -103,8 +102,6 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage->unpacked_target_batch), gpu_storage->gpu_max_target_batch_bytes * sizeof(uint8_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage->packed_target_batch), (gpu_storage->gpu_max_target_batch_bytes/8) * sizeof(uint32_t)));
-
-
 	}
 
 	if (gpu_storage->gpu_max_n_alns < actual_n_alns) {

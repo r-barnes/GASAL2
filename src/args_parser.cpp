@@ -6,8 +6,6 @@
 
 
 Parameters::Parameters(int argc_, char **argv_) {
-
-
     // default values
     sa = (1);
     sb = (4);
@@ -35,7 +33,6 @@ Parameters::Parameters(int argc_, char **argv_) {
 
     argc = argc_;
     argv = argv_;
-
 }
 
 Parameters::~Parameters() {

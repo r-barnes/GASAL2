@@ -4,7 +4,6 @@
 
 #include <cstdint>
 
-
 #ifndef HOST_MALLOC_SAFETY_FACTOR
 #define HOST_MALLOC_SAFETY_FACTOR 5
 #endif

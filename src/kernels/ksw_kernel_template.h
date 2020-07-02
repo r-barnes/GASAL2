@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #define PEN_CLIP5 (5)
 #define TILE_SIDE (8)
 
@@ -40,7 +42,6 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
 	uint32_t target_batch_regs = (tlen >> 3) + 1;//(tlen >> 3) + (tlen & 0b0111 ? 1 : 0);//number of 32-bit words holding target_batch sequence
     uint32_t h0 = seed_score[tid];
     int32_t subScore;
-    uint32_t target_tile_id, target_base_id, query_tile_id, query_base_id;
     uint32_t gpac, rpac, gbase, rbase;
     int zdrop = 0;
 
@@ -50,8 +51,8 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
     int e_ins = _cudaGapExtend;
 
     eh_t eh[MAX_QUERY_LEN] ; // score array
-    int i, j, oe_del = o_del + e_del, oe_ins = o_ins + e_ins, beg, end, max, max_i, max_j, max_ie, gscore, max_off;
-    for (i = 0; i < MAX_QUERY_LEN; i++)
+    int j, oe_del = o_del + e_del, oe_ins = o_ins + e_ins, beg, end, max, max_i, max_j, max_ie, gscore, max_off;
+    for(int i = 0; i < MAX_QUERY_LEN; i++)
     {
         eh[i].h = 0;
         eh[i].e = 0;
@@ -69,14 +70,14 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
     max_off = 0;
     beg = 0, end = qlen;
 
-    for (target_tile_id = 0; target_tile_id < target_batch_regs; target_tile_id++) //target_batch sequence in rows
+    for (uint32_t target_tile_id = 0; target_tile_id < target_batch_regs; target_tile_id++) //target_batch sequence in rows
     {
         gpac = packed_target_batch[packed_target_batch_idx + target_tile_id];//load 8 packed bases from target_batch sequence
 
-        for (target_base_id = 0; target_base_id < TILE_SIDE; target_base_id++)
+        for (uint32_t target_base_id = 0; target_base_id < TILE_SIDE; target_base_id++)
         {
 
-            i = target_tile_id * TILE_SIDE + target_base_id;
+            int i = target_tile_id * TILE_SIDE + target_base_id;
 
             if (i >= tlen) // skip padding
                 break;
@@ -93,11 +94,11 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
                 h1 = 0;
 
 
-            for(query_tile_id = 0; (query_tile_id < query_batch_regs); query_tile_id++)
+            for(uint32_t query_tile_id = 0; (query_tile_id < query_batch_regs); query_tile_id++)
             {
                 rpac = packed_query_batch[packed_query_batch_idx + query_tile_id];//load 8 bases from query_batch sequence
 
-                for(query_base_id = 0; (query_base_id < TILE_SIDE); query_base_id++)
+                for(uint32_t query_base_id = 0; (query_base_id < TILE_SIDE); query_base_id++)
                 {
                     j = query_tile_id * TILE_SIDE + query_base_id;
                     if (j < beg)

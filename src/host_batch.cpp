@@ -3,6 +3,7 @@
 #include <gasal2/interfaces.h>
 #include <gasal2/host_batch.h>
 
+#include <iostream>
 #include <string.h>
 
 // Functions for host batches handling.
@@ -10,7 +11,7 @@
 host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 {
 	cudaError_t err;
-	host_batch_t *res = (host_batch_t *)calloc(1, sizeof(host_batch_t));
+	host_batch_t *const res = (host_batch_t *)calloc(1, sizeof(host_batch_t));
 	CHECKCUDAERROR(cudaHostAlloc(&(res->data), batch_bytes*sizeof(uint8_t), cudaHostAllocDefault));
 	res->page_size = batch_bytes;
 	res->data_size = 0;
@@ -25,7 +26,7 @@ void gasal_host_batch_destroy(host_batch_t *res)
 	cudaError_t err;
 	if (res==NULL)
 	{
-		fprintf(stderr, "[GASAL ERROR] Trying to free a NULL pointer\n");
+		std::cerr<<"[GASAL ERROR] Trying to free a NULL pointer"<<std::endl;
 		exit(1);
 	}
 	// recursive function to destroy all the linked listgasal_res_destroy_host
@@ -50,7 +51,6 @@ void gasal_host_batch_reset(gasal_gpu_storage_t *gpu_storage)
 	// reset all batch idx and data occupation
 	host_batch_t *cur_page = NULL;
 	for(int i = 0; i < 2; i++) {
-
 		switch(i) {
 			case 0:
 				cur_page = (gpu_storage->extensible_host_unpacked_query_batch);
@@ -237,7 +237,7 @@ void gasal_host_batch_printall(host_batch_t *res)
 					res->offset, (res->next != NULL? res->next->offset : -1), res->data_size, res->page_size);
 	if (res->next != NULL)
 	{
-		fprintf(stderr, "+--->");
+		std::cerr<<"+--->";
 		gasal_host_batch_printall(res->next);
 	}
 }

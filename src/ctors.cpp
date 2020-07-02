@@ -14,12 +14,10 @@ gasal_gpu_storage_v gasal_init_gpu_storage_v(int n_streams) {
 	v.a = (gasal_gpu_storage_t*)calloc(n_streams, sizeof(gasal_gpu_storage_t));
 	v.n = n_streams;
 	return v;
-
 }
 
 
 void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns,  Parameters *params) {
-
 	cudaError_t err;
 	int max_query_len_8 = max_query_len % 8 ? max_query_len + (8 - (max_query_len % 8)) : max_query_len;
 	int max_target_len_8 = max_target_len % 8 ? max_target_len + (8 - (max_target_len % 8)) : max_target_len;
@@ -34,7 +32,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 
 
 	for (int i = 0; i < gpu_storage_vec->n; i++) {
-
 		gpu_storage_vec->a[i].extensible_host_unpacked_query_batch = gasal_host_batch_new(host_max_query_batch_bytes, 0);
 		gpu_storage_vec->a[i].extensible_host_unpacked_target_batch = gasal_host_batch_new(host_max_target_batch_bytes, 0);
 
@@ -53,13 +50,10 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].query_op), gpu_max_n_alns * sizeof(uint8_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].target_op), gpu_max_n_alns * sizeof(uint8_t)));
 
-
-
 		if (params->isPacked)
 		{
 			gpu_storage_vec->a[i].packed_query_batch = (uint32_t *) gpu_storage_vec->a[i].unpacked_query_batch;
 			gpu_storage_vec->a[i].packed_target_batch = (uint32_t *) gpu_storage_vec->a[i].unpacked_target_batch;
-
 		} else {
 			CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].packed_query_batch), (gpu_max_query_batch_bytes/8) * sizeof(uint32_t)));
 			CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].packed_target_batch), (gpu_max_target_batch_bytes/8) * sizeof(uint32_t)));
@@ -74,7 +68,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 			gpu_storage_vec->a[i].seed_scores = NULL;
 		}
 
-
 		CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage_vec->a[i].host_query_batch_lens), host_max_n_alns * sizeof(uint32_t), cudaHostAllocDefault));
 		CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage_vec->a[i].host_target_batch_lens), host_max_n_alns * sizeof(uint32_t), cudaHostAllocDefault));
 		CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage_vec->a[i].host_query_batch_offsets), host_max_n_alns * sizeof(uint32_t), cudaHostAllocDefault));
@@ -84,7 +77,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].target_batch_lens), gpu_max_n_alns * sizeof(uint32_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].query_batch_offsets), gpu_max_n_alns * sizeof(uint32_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].target_batch_offsets), gpu_max_n_alns * sizeof(uint32_t)));
-
 
 		gpu_storage_vec->a[i].host_res = gasal_res_new_host(host_max_n_alns, params);
 		if(params->start_pos == WITH_TB) CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage_vec->a[i].host_res->cigar), gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
@@ -108,7 +100,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 			CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].packed_tb_matrices), gpu_storage_vec->a[i].packed_tb_matrix_size * sizeof(uint4)));
 		}
 
-
 		CHECKCUDAERROR(cudaStreamCreate(&(gpu_storage_vec->a[i].str)));
 		gpu_storage_vec->a[i].is_free = 1;
 		gpu_storage_vec->a[i].host_max_query_batch_bytes = host_max_query_batch_bytes;
@@ -125,7 +116,6 @@ void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *par
 	cudaError_t err;
 
 	for (int i = 0; i < gpu_storage_vec->n; i ++) {
-
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_query_batch);
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_target_batch);
 
@@ -137,7 +127,6 @@ void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *par
 			gasal_res_destroy_host(gpu_storage_vec->a[i].host_res_second);
 			gasal_res_destroy_device(gpu_storage_vec->a[i].device_res_second, gpu_storage_vec->a[i].device_cpy_second);
 		}
-
 
 		if (!(params->algo == KSW))
 		{

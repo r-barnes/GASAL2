@@ -365,8 +365,6 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 
 		device_res->target_batch_start[tid] = (ref_len - 1) - maxXY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
 		device_res->query_batch_start[tid] = (read_len - 1) - maxXY_x;//copy the start position on target_batch sequence to the output array in the GPU mem
-
-
 	} // endif(SAMETYPE(START, Int2Type<WITH_START>()))
 
 	return;

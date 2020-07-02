@@ -22,7 +22,7 @@ T* cudaHostRealloc(void *source, int new_size, int old_size)
 	CHECKCUDAERROR(cudaMemcpy(destination, source, old_size * sizeof(T), cudaMemcpyHostToHost));
 	CHECKCUDAERROR(cudaFreeHost(source));
 	return destination;
-};
+}
 
 // Realloc new fields when more alignments are added.
 void gasal_host_alns_resize(gasal_gpu_storage_t *gpu_storage, int new_max_alns, Parameters *params)
