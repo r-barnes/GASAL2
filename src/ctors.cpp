@@ -1,15 +1,10 @@
 
-#include "gasal.h"
-
-#include "args_parser.h"
-
-#include "host_batch.h"
-
-#include "res.h"
-
-#include "ctors.h"
-
-#include "interfaces.h"
+#include <gasal2/gasal.h>
+#include <gasal2/args_parser.h>
+#include <gasal2/host_batch.h>
+#include <gasal2/res.h>
+#include <gasal2/ctors.h>
+#include <gasal2/interfaces.h>
 
 #include <cmath>
 
@@ -90,7 +85,7 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].target_batch_lens), gpu_max_n_alns * sizeof(uint32_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].query_batch_offsets), gpu_max_n_alns * sizeof(uint32_t)));
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage_vec->a[i].target_batch_offsets), gpu_max_n_alns * sizeof(uint32_t)));
-		
+
 
 		gpu_storage_vec->a[i].host_res = gasal_res_new_host(host_max_n_alns, params);
 		if(params->start_pos == WITH_TB) CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage_vec->a[i].host_res->cigar), gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
@@ -98,7 +93,7 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 		gpu_storage_vec->a[i].device_res = gasal_res_new_device(gpu_storage_vec->a[i].device_cpy);
 
 		if (params->secondBest)
-		{	
+		{
 			gpu_storage_vec->a[i].host_res_second = gasal_res_new_host(host_max_n_alns,  params);
 			gpu_storage_vec->a[i].device_cpy_second = gasal_res_new_device_cpy(host_max_n_alns, params);
 			gpu_storage_vec->a[i].device_res_second = gasal_res_new_device(gpu_storage_vec->a[i].device_cpy_second);
@@ -133,7 +128,7 @@ void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *par
 
 	int i;
 	for (i = 0; i < gpu_storage_vec->n; i ++) {
-		
+
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_query_batch);
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_target_batch);
 
@@ -243,7 +238,7 @@ void gasal_gpu_mem_free(gasal_gpu_storage_t *gpu_storage, Parameters *params) {
 	if (gpu_storage->target_batch_offsets != NULL) CHECKCUDAERROR(cudaFree(gpu_storage->target_batch_offsets));
 	if (gpu_storage->query_batch_lens != NULL) CHECKCUDAERROR(cudaFree(gpu_storage->query_batch_lens));
 	if (gpu_storage->target_batch_lens != NULL) CHECKCUDAERROR(cudaFree(gpu_storage->target_batch_lens));
-	
+
 	gasal_res_destroy_device(gpu_storage->device_res,gpu_storage->device_cpy);
 	if (params->secondBest)
 	{

@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "args_parser.h"
+#include <gasal2/args_parser.h>
 
 
 
@@ -13,10 +13,10 @@ Parameters::Parameters(int argc_, char **argv_) {
     sb = (4);
     gapo = (6);
     gape = (1);
-    start_pos = (WITHOUT_START); 
+    start_pos = (WITHOUT_START);
     print_out = (0);
     n_threads = (1);
-    
+
     k_band = (0);
 
     isPacked = false;
@@ -94,7 +94,7 @@ void Parameters::parse() {
 
     // before testing anything, check if calling for help.
     int c;
-        
+
     std::string arg_next = "";
     std::string arg_cur = "";
 
@@ -200,7 +200,7 @@ void Parameters::parse() {
                         semiglobal_skipping_head = QUERY;
                     else if (!arg_next.compare("BOTH"))
                         semiglobal_skipping_head = BOTH;
-                    else 
+                    else
                     {
                         failure(WRONG_ARG);
                     }
@@ -215,7 +215,7 @@ void Parameters::parse() {
                         semiglobal_skipping_tail = QUERY;
                     else if (!arg_next.compare("BOTH"))
                         semiglobal_skipping_tail = BOTH;
-                    else 
+                    else
                     {
                         failure(WRONG_ARG);
                     }
@@ -223,7 +223,7 @@ void Parameters::parse() {
 
             }
 
-            
+
         } else {
             failure(WRONG_ARG);
         }

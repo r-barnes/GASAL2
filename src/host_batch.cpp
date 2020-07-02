@@ -1,12 +1,10 @@
-#include "gasal.h"
-#include "args_parser.h"
-#include "interfaces.h"
-#include "host_batch.h"
+#include <gasal2/gasal.h>
+#include <gasal2/args_parser.h>
+#include <gasal2/interfaces.h>
+#include <gasal2/host_batch.h>
 
 
-
-
-// Functions for host batches handling. 
+// Functions for host batches handling.
 
 host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 {
@@ -32,18 +30,18 @@ void gasal_host_batch_destroy(host_batch_t *res)
 	// recursive function to destroy all the linked listgasal_res_destroy_host
 	if (res->next != NULL)
 		gasal_host_batch_destroy(res->next);
-	if (res->data != NULL) 
+	if (res->data != NULL)
 	{
 		CHECKCUDAERROR(cudaFreeHost(res->data));
 	}
-	
+
 	free(res);
 }
 
 host_batch_t *gasal_host_batch_getlast(host_batch_t *arg)
 {
 	return (arg->next == NULL ? arg : gasal_host_batch_getlast(arg->next) );
-	
+
 }
 
 void gasal_host_batch_reset(gasal_gpu_storage_t *gpu_storage)
@@ -78,7 +76,7 @@ void gasal_host_batch_reset(gasal_gpu_storage_t *gpu_storage)
 // TODO: make a template... now that you started to go the C++/template way, just stick to it.
 uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char* data, uint32_t size, data_source SRC)
 {
-	// since query and target are very symmetric here, we use pointers to route the data where it has to, 
+	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 
 	host_batch_t *cur_page = NULL;
@@ -96,7 +94,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 		default:
 		break;
 	}
-	
+
 	int nbr_N = 0;
 	while((size+nbr_N)%8)
 		nbr_N++;
@@ -114,7 +112,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 				cur_page->data_size,
 				cur_page->page_size * 2,
 				*p_batch_bytes + cur_page->page_size * 2);
-		
+
 		host_batch_t *res = gasal_host_batch_new(cur_page->page_size * 2, cur_page->offset + cur_page->data_size);
 		cur_page->next = res;
 		cur_page->is_locked = 1;
@@ -123,7 +121,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 		cur_page = cur_page->next;
 		//fprintf(stderr, "CREATED: "); gasal_host_batch_print(cur_page);
 	}
-	
+
 	if (cur_page->next != NULL && cur_page->page_size - cur_page->data_size < size + nbr_N)
 	{
 		// re-write offset for the next page to correspond to what has been filled on the current page.
@@ -154,19 +152,19 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 
 
 uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char base, data_source SRC )
-{	 
+{
     return gasal_host_batch_add(gpu_storage, idx, &base, 1, SRC );
 }
 
 
 uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char *data, uint32_t size, data_source SRC )
-{	
+{
 
-	// since query and target are very symmetric here, we use pointers to route the data where it has to, 
+	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 	host_batch_t *cur_page = NULL;
 	uint32_t *p_batch_bytes = NULL;
-	
+
 
 	switch(SRC) {
 		case QUERY:
@@ -193,7 +191,7 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, co
 			is_done = 1;
 
 		} else if ((*p_batch_bytes >= idx + size) && (cur_page->next != NULL) && (cur_page->next->offset < idx + size)) {
-		
+
 			cur_page = cur_page->next;
 
 		} else {
@@ -203,8 +201,8 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, co
 					(SRC == QUERY ? "query":"target"),
 					*p_batch_bytes,
 					*p_batch_bytes * 2);
-			
-	
+
+
 			*p_batch_bytes += *p_batch_bytes;
 
 			// corner case: if we allocated less than a single sequence length to begin with... it shouldn't be allowed actually, but at least it's caught here.
@@ -212,9 +210,9 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, co
 				*p_batch_bytes += *p_batch_bytes;
 
 			host_batch_t *res = gasal_host_batch_new(*p_batch_bytes, idx);
-	
+
 			cur_page->next = res;
-			
+
 			cur_page = cur_page->next;
 		}
 	}
@@ -225,16 +223,16 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, co
 
 
 // this printer displays the whole sequence. It is heavy and shouldn't be called when you have more than a couple sequences.
-void gasal_host_batch_print(host_batch_t *res) 
+void gasal_host_batch_print(host_batch_t *res)
 {
-	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n", 
+	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n",
 					res->offset, (res->next != NULL? res->next->offset : -1), res->data_size, res->page_size);
 }
 
 // this printer allows to see the linked list easily.
 void gasal_host_batch_printall(host_batch_t *res)
-{	
-	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n", 
+{
+	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n",
 					res->offset, (res->next != NULL? res->next->offset : -1), res->data_size, res->page_size);
 	if (res->next != NULL)
 	{

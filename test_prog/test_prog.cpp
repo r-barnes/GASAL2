@@ -1,7 +1,4 @@
-
-
-#include "../include/gasal_header.h"
-
+#include <gasal2/gasal_header.h>
 
 #include <vector>
 #include <unistd.h>
@@ -68,7 +65,7 @@ int main(int argc, char **argv) {
 		The file reader detects a '>' then concatenates all the following lines into one sequence, until the next '>' or EOF.
 		See more about FASTA format : https://en.wikipedia.org/wiki/FASTA_format
 	*/
-	
+
 	int seq_begin=0;
 
 	std::vector<uint8_t> query_mod;
@@ -84,10 +81,10 @@ int main(int argc, char **argv) {
 	 * - '<' translates to 0b01 (1) = Reverse, natural
 	 * - '/' translates to 0b10 (2) = Forward, complemented
 	 * - '+' translates to 0b11 (3) = Reverse, complemented
-	 * No protection is done, so any other number will only have its two first bytes counted as above.	 
+	 * No protection is done, so any other number will only have its two first bytes counted as above.
 	 */
 
-	while (getline(args->query_batch_fasta, query_batch_line) && getline(args->target_batch_fasta, target_batch_line)) { 
+	while (getline(args->query_batch_fasta, query_batch_line) && getline(args->target_batch_fasta, target_batch_line)) {
 
 		//load sequences from the files
 		char *q = NULL;
@@ -95,10 +92,10 @@ int main(int argc, char **argv) {
 		q = strchr(line_starts, (int) (query_batch_line[0]));
 		t = strchr(line_starts, (int) (target_batch_line[0]));
 
-		/*  
+		/*
 			t and q are pointers to the first occurence of the first read character in the line_starts array.
 			so if I compare the address of these pointers with the address of the pointer to line_start, then...
-			I can get which character was found, so which modifier is required. 
+			I can get which character was found, so which modifier is required.
 		*/
 
 		if (q != NULL && t != NULL) {
@@ -121,7 +118,7 @@ int main(int argc, char **argv) {
 				maximum_sequence_length = MAX((query_seqs.back()).length(), maximum_sequence_length);
 			}
 			seq_begin = 1;
-			
+
 		} else if (seq_begin == 1) {
 			query_seqs.push_back(query_batch_line);
 			target_seqs.push_back(target_batch_line);
@@ -170,7 +167,7 @@ int main(int argc, char **argv) {
 		if ((query_seq_mod[i]) > 0)
 			std::cerr << +(query_seq_mod[i]) << "@" << query_seq_id[i] << "| ";
 	}
-	
+
 	std::cerr << std::endl;
 #endif
 
@@ -204,24 +201,24 @@ int main(int argc, char **argv) {
 	for (int z = 0; z < n_threads; z++) {
 		gpu_storage_vecs[z] = gasal_init_gpu_storage_v(NB_STREAMS);// creating NB_STREAMS streams per thread
 
-		/* 
+		/*
 			About memory sizes:
-			The required memory is the total size of the batch + its padding, divided by the number of streams. 
+			The required memory is the total size of the batch + its padding, divided by the number of streams.
 			The worst case would be that every sequence has to be padded with 7 'N', since they must have a length multiple of 8.
 			Even though the memory can be dynamically expanded both for Host and Device, it is advised to start with a memory large enough so that these expansions rarely occur (for better performance.)
 			Modifying the factor '1' in front of each size lets you see how GASAL2 expands the memory when needed.
 		*/
 		/*
 		// For exemple, this is exactly the memory needed to allocate to fit all sequences is a single GPU BATCH.
-		gasal_init_streams(&(gpu_storage_vecs[z]), 
-							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) , 
-							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) , 
+		gasal_init_streams(&(gpu_storage_vecs[z]),
 							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
-							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS))  , 
+							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
+							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
+							1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS))  ,
 							ceil((double)target_seqs.size() / (double)(NB_STREAMS)), // maximum number of alignments is bigger on target than on query side.
-							ceil((double)target_seqs.size() / (double)(NB_STREAMS)), 
+							ceil((double)target_seqs.size() / (double)(NB_STREAMS)),
 							args);
-		*/		
+		*/
 		//initializing the streams by allocating the required CPU and GPU memory
 		// note: the calculations of the detailed sizes to allocate could be done on the library side (to hide it from the user's perspective)
 		gasal_init_streams(&(gpu_storage_vecs[z]), (maximum_sequence_length_query + 7) , //TODO: remove maximum_sequence_length_query
@@ -291,24 +288,24 @@ int main(int argc, char **argv) {
 
 					/*
 						All the filling is moved on the library size, to take care of the memory size and expansions (when needed).
-						The function gasal_host_batch_fill takes care of how to fill, how much to pad with 'N', and how to deal with memory. 
+						The function gasal_host_batch_fill takes care of how to fill, how much to pad with 'N', and how to deal with memory.
 						It's the same function for query and target, and you only need to set the final flag to either ; this avoides code duplication.
 						The way the host memory is filled changes the current _idx (it's increased by size, and by the padding). That's why it's returned by the function.
 					*/
 
-					query_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, 
-									query_batch_idx, 
-									query_seqs[i].c_str(), 
+					query_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+									query_batch_idx,
+									query_seqs[i].c_str(),
 									query_seqs[i].size(),
 									QUERY);
 
-					target_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, 
-									target_batch_idx, 
-									target_seqs[i].c_str(), 
+					target_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+									target_batch_idx,
+									target_seqs[i].c_str(),
 									target_seqs[i].size(),
 									TARGET);
 
-					
+
 					(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_lens[j] = query_seqs[i].size();
 					(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_target_batch_lens[j] = target_seqs[i].size();
 
@@ -340,7 +337,7 @@ int main(int argc, char **argv) {
 
 
 			//-------------------------------print alignment results----------------------------------------
-		
+
 			gpu_batch_arr_idx = 0;
 			while (gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].n) {//loop through all the streams and print the results
 																					//of the finished streams.
@@ -349,12 +346,12 @@ int main(int argc, char **argv) {
 					if(print_out) {
 					#pragma omp critical
 					for (int i = gpu_batch_arr[gpu_batch_arr_idx].batch_start; j < gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch; i++, j++) {
-						
+
 						std::cout << "query_name=" << query_headers[i] ;
 						std::cout << "\ttarget_name=" << target_headers[i] ;
 						std::cout << "\tscore=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->aln_score[j] ;
-						
-						
+
+
 						/// WARNING : INEQUALITY ON ENUM: CAN BREAK IF ENUM ORDER IS CHANGED
 						if ((args->start_pos == WITH_START || args->start_pos == WITH_TB)
 							&& ((args->algo == SEMI_GLOBAL && (args->semiglobal_skipping_head != NONE || args->semiglobal_skipping_head != NONE))
@@ -363,14 +360,14 @@ int main(int argc, char **argv) {
 							std::cout << "\tquery_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_start[j];
 							std::cout << "\ttarget_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_start[j];
 						}
-						
+
 						if (args->algo != GLOBAL)
 						{
 							std::cout << "\tquery_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_end[j];
 							std::cout << "\ttarget_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_end[j] ;
 						}
 
-	
+
 
 						if (args->secondBest)
 						{
