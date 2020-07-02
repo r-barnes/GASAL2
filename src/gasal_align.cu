@@ -166,42 +166,34 @@ void gasal_aln_async(
 	// here you can track the evolution of your data structure processing with the printer: gasal_host_batch_printall(current);
 
 	host_batch_t *current = gpu_storage->extensible_host_unpacked_query_batch;
-	while (current != NULL)
-	{
+	for(;current;current = current->next){
 		//gasal_host_batch_printall(current);
 		CHECKCUDAERROR(cudaMemcpyAsync( &(gpu_storage->unpacked_query_batch[current->offset]),
 										current->data,
 										current->data_size,
 										cudaMemcpyHostToDevice,
 										gpu_storage->str ) );
-
-		current = current->next;
 	}
 
 	current = gpu_storage->extensible_host_unpacked_target_batch;
-	while (current != NULL)
-	{
+	for(;current;current = current->next){
 		CHECKCUDAERROR(cudaMemcpyAsync( &(gpu_storage->unpacked_target_batch[current->offset]),
 										current->data,
 										current->data_size,
 										cudaMemcpyHostToDevice,
 										gpu_storage->str ) );
-
-		current = current->next;
 	}
 
 	//-----------------------------------------------------------------------------------------------------------
 	// TODO: Adjust the block size depending on the kernel execution.
 
-    const uint32_t BLOCKDIM = 128;
-    const uint32_t N_BLOCKS = (actual_n_alns + BLOCKDIM - 1) / BLOCKDIM;
+	const uint32_t BLOCKDIM = 128;
+	const uint32_t N_BLOCKS = (actual_n_alns + BLOCKDIM - 1) / BLOCKDIM;
 
-    const int query_batch_tasks_per_thread  = (int)ceil((double)actual_query_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
-    const int target_batch_tasks_per_thread = (int)ceil((double)actual_target_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
+	const int query_batch_tasks_per_thread  = (int)ceil((double)actual_query_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
+	const int target_batch_tasks_per_thread = (int)ceil((double)actual_target_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
 
-
-    //-------------------------------------------launch packing kernel
-
+	//-------------------------------------------launch packing kernel
 
 	if (!(params->isPacked)){
 		gasal_pack_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
