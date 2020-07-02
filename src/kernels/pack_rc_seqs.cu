@@ -2,11 +2,43 @@
 
 #include <cstdint>
 
-#define A_PAK ('A'&0x0F)
-#define C_PAK ('C'&0x0F)
-#define G_PAK ('G'&0x0F)
-#define T_PAK ('T'&0x0F)
+//TODO: This is a really scary way of defining the numbers since we're only
+//choosing the bottom four bits but the letter range is larger. It seems to work
+//out by convenience.
+#define A_PAK ('A'&0x0F) //1
+#define C_PAK ('C'&0x0F) //3
+#define G_PAK ('G'&0x0F) //7
+#define T_PAK ('T'&0x0F) //4
 //#define N_PAK ('N'&0x0F)
+
+
+__global__ void pack_data(
+	const uint32_t *const unpacked,
+	uint32_t *const packed,
+	const uint64_t N
+){
+  const auto thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+  const auto stride    = gridDim.x * blockDim.x;
+
+  //Grid stride loop in which each thread takes 2 items
+  //See: https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
+  for(int i=thread_id; i<N/2; i+=stride){
+    const uint32_t reg1 = unpacked[2*i  ]; //Load 4 bases of the query sequence from global memory
+    const uint32_t reg2 = unpacked[2*i+1]; //Load another 4 bases
+    uint32_t packed_reg = 0;
+    packed_reg |= ((reg1 >>  0) & 0xF) << 28; // ----
+    packed_reg |= ((reg1 >>  8) & 0xF) << 24; //    |
+    packed_reg |= ((reg1 >> 16) & 0xF) << 20; //    |
+    packed_reg |= ((reg1 >> 24) & 0xF) << 16; //    |
+    packed_reg |= ((reg2 >>  0) & 0xF) << 12; //     > pack sequence
+    packed_reg |= ((reg2 >>  8) & 0xF) <<  8; //    |
+    packed_reg |= ((reg2 >> 16) & 0xF) <<  4; //    |
+    packed_reg |= ((reg2 >> 24) & 0xF) <<  0; //-----
+    packed[i] = packed_reg;
+	}
+}
+
+
 
 __global__ void gasal_pack_kernel(
 	uint32_t* unpacked_query_batch,

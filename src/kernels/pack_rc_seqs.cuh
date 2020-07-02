@@ -2,6 +2,12 @@
 
 #include <cstdint>
 
+__global__ void pack_data(
+	const uint32_t *const unpacked,
+	uint32_t *const packed,
+	const uint64_t len
+);
+
 __global__ void gasal_pack_kernel(
 	uint32_t* unpacked_query_batch,
 	uint32_t* unpacked_target_batch,
