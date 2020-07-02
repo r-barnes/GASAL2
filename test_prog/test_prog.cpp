@@ -24,7 +24,6 @@
 
 
 int main(int argc, char **argv) {
-
 	//gasal_set_device(GPU_SELECT);
 
 	Parameters args(argc, argv);
@@ -112,10 +111,10 @@ int main(int argc, char **argv) {
 
 			if (seq_begin == 2) {
 				// a sequence was already being read. Now it's done, so we should find its length.
-				target_seqs_len += (target_seqs.back()).length();
-				query_seqs_len += (query_seqs.back()).length();
-				maximum_sequence_length = MAX((target_seqs.back()).length(), maximum_sequence_length);
-				maximum_sequence_length = MAX((query_seqs.back()).length(), maximum_sequence_length);
+				target_seqs_len += target_seqs.back().length();
+				query_seqs_len  += query_seqs.back().length();
+				maximum_sequence_length = MAX(target_seqs.back().length(), maximum_sequence_length);
+				maximum_sequence_length = MAX(query_seqs.back().length(),  maximum_sequence_length);
 			}
 			seq_begin = 1;
 
@@ -136,11 +135,11 @@ int main(int argc, char **argv) {
 
 
 	// Check maximum sequence length one more time, to check the last read sequence:
-	target_seqs_len += (target_seqs.back()).length();
-	query_seqs_len += (query_seqs.back()).length();
-	maximum_sequence_length = MAX((target_seqs.back()).length(), maximum_sequence_length);
-	maximum_sequence_length = MAX((query_seqs.back()).length(), maximum_sequence_length);
-	int maximum_sequence_length_query = MAX((query_seqs.back()).length(), 0);
+	target_seqs_len += target_seqs.back().length();
+	query_seqs_len  += query_seqs.back().length();
+	maximum_sequence_length = MAX(target_seqs.back().length(), maximum_sequence_length);
+	maximum_sequence_length = MAX(query_seqs.back().length(),  maximum_sequence_length);
+	int maximum_sequence_length_query = MAX(query_seqs.back().length(), 0);
 
 	#ifdef DEBUG
 		std::cerr << "[TEST_PROG DEBUG]: ";
@@ -271,7 +270,6 @@ int main(int argc, char **argv) {
 				unsigned int j = 0;
 				//-----------Create a batch of sequences to be aligned on the GPU. The batch contains (target_seqs.size() / NB_STREAMS) number of sequences-----------------------
 
-
 				for (int i = curr_idx; seqs_done < n_seqs && j < (STREAM_BATCH_SIZE); i++, j++, seqs_done++)
 				{
 
@@ -366,8 +364,6 @@ int main(int argc, char **argv) {
 							std::cout << "\ttarget_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_end[j] ;
 						}
 
-
-
 						if (args.secondBest)
 						{
 							std::cout << "\t2nd_score=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->aln_score[j] ;
@@ -433,22 +429,28 @@ int main(int argc, char **argv) {
 
 
 	}
+
 	for (int z = 0; z < n_threads; z++) {
 		gasal_destroy_streams(&(gpu_storage_vecs[z]), args);
 		gasal_destroy_gpu_storage_v(&(gpu_storage_vecs[z]));
 	}
 	free(gpu_storage_vecs);
 	total_time.Stop();
+
 	/*
 	string algorithm = al_type;
 	string start_type[2] = {"without_start", "with_start"};
 	al_type += "_";
 	al_type += start_type[start_pos==WITH_START];
 	*/
+
 	double av_misc_time = 0.0;
 	for (int i = 0; i < n_threads; ++i){
 		av_misc_time += (thread_misc_time[i]/n_threads);
 	}
+
 	std::cerr << std::endl << "Done" << std::endl;
 	fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.GetTime());
+
+	return 0;
 }
