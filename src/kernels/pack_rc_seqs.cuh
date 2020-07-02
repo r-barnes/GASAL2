@@ -11,7 +11,7 @@ __global__ void pack_data(
 __global__ void gasal_pack_kernel(
 	uint32_t* unpacked_query_batch,
 	uint32_t* unpacked_target_batch,
-	uint32_t *packed_query_batch,
+	uint32_t* packed_query_batch,
 	uint32_t* packed_target_batch,
 	int query_batch_tasks_per_thread,
 	int target_batch_tasks_per_thread,

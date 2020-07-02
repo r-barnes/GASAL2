@@ -50,9 +50,10 @@ __global__ void gasal_pack_kernel(
 	uint32_t total_query_batch_regs,
 	uint32_t total_target_batch_regs
 ){
-	const int32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;//thread ID
-	uint32_t n_threads = gridDim.x * blockDim.x;
-	for (int32_t i = 0; i < query_batch_tasks_per_thread &&  (((i*n_threads)<<1) + (tid<<1) < total_query_batch_regs); ++i) {
+	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+	const uint32_t n_threads = gridDim.x * blockDim.x;
+
+	for (uint32_t i = 0; i < query_batch_tasks_per_thread &&  (((i*n_threads)<<1) + (tid<<1) < total_query_batch_regs); ++i) {
 		uint32_t *query_addr = &(unpacked_query_batch[(i*n_threads)<<1]);
 		uint32_t reg1 = query_addr[(tid << 1)]; //load 4 bases of the query sequence from global memory
 		uint32_t reg2 = query_addr[(tid << 1) + 1]; //load  another 4 bases
@@ -89,10 +90,18 @@ __global__ void gasal_pack_kernel(
 }
 
 
-__global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint32_t *packed_target_batch, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, uint8_t *query_op, uint8_t *target_op, uint32_t  n_tasks)
-{
-
-	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;//thread ID
+__global__ void	gasal_reversecomplement_kernel(
+  uint32_t *packed_query_batch,
+  uint32_t *packed_target_batch,
+  uint32_t *query_batch_lens,
+  uint32_t *target_batch_lens,
+  uint32_t *query_batch_offsets,
+  uint32_t *target_batch_offsets,
+  uint8_t  *query_op,
+  uint8_t  *target_op,
+  uint32_t n_tasks
+){
+	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
 	if (tid >= n_tasks) return;
 	if (query_op[tid] == 0 && target_op[tid] == 0) return;		// if there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
