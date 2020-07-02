@@ -1,12 +1,9 @@
-#ifndef __GASAL_H__
-#define __GASAL_H__
-
-
-#include <stdlib.h>
-#include <stdint.h>
-
+#pragma once
 
 #include <cuda_runtime.h>
+
+#include <cstdint>
+
 
 #ifndef HOST_MALLOC_SAFETY_FACTOR
 #define HOST_MALLOC_SAFETY_FACTOR 5
@@ -40,7 +37,7 @@ enum comp_start{
 	WITH_TB
 };
 
-// Generic enum for ture/false. Using this instead of bool to generalize templates out of Int values for secondBest. 
+// Generic enum for ture/false. Using this instead of bool to generalize templates out of Int values for secondBest.
 // Can be usd more generically, for example for WITH_/WITHOUT_START.
 enum Bool{
 	FALSE,
@@ -107,7 +104,7 @@ typedef struct {
 
 	uint32_t *host_seed_scores;
 	uint32_t *seed_scores;
-	
+
 	host_batch_t *extensible_host_unpacked_query_batch;
 	host_batch_t *extensible_host_unpacked_target_batch;
 
@@ -125,8 +122,8 @@ typedef struct {
 	gasal_res_t *device_cpy; // a struct that contains the pointers to the device side - THE STRUCT IS ON HOST SIDE, but the CONTENT is malloc'd on and points to the DEVICE SIDE
 	gasal_res_t *device_res; // the results that are written on device - THE STRUCT IS ON DEVICE SIDE, ITS CONTENT POINTS TO THE DEVICE SIDE.
 
-	gasal_res_t *host_res_second; 
-	gasal_res_t *device_res_second; 
+	gasal_res_t *host_res_second;
+	gasal_res_t *device_res_second;
 	gasal_res_t *device_cpy_second;
 
 	uint32_t gpu_max_query_batch_bytes;
@@ -134,7 +131,7 @@ typedef struct {
 
 	uint32_t host_max_query_batch_bytes;
 	uint32_t host_max_target_batch_bytes;
-	
+
 	uint32_t gpu_max_n_alns;
 	uint32_t host_max_n_alns;
 	uint32_t current_n_alns;
@@ -163,6 +160,3 @@ typedef struct{
 	int32_t gap_open;
 	int32_t gap_extend;
 } gasal_subst_scores;
-
-
-#endif

@@ -1,17 +1,8 @@
-#ifndef ARGS_PARSER_H
-#define ARGS_PARSER_H
-
-/*
-#include <stdint.h>
-
+#pragma once
 
 #include "gasal.h"
-*/
+
 #include <fstream>
-#include <iostream>
-#include "gasal.h"
-#include <string.h>
-
 
 enum fail_type {
     NOT_ENOUGH_ARGS,
@@ -23,7 +14,7 @@ enum fail_type {
 
 class Parameters{
 
-    public: 
+    public:
         Parameters(int argc, char** argv);
         ~Parameters();
         void print();
@@ -38,7 +29,7 @@ class Parameters{
         int32_t sb;
         int32_t gapo;
         int32_t gape;
-        comp_start start_pos; 
+        comp_start start_pos;
         int print_out;
         int n_threads;
         int32_t k_band;
@@ -66,6 +57,3 @@ class Parameters{
         int argc;
         char** argv;
 };
-
-
-#endif

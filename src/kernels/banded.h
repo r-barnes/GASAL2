@@ -1,5 +1,4 @@
-#ifndef KERNEL_BANDED
-#define KERNEL_BANDED
+#pragma once
 
 // These two macros are used for the fixed-band kernel, which provides lots of wrong results. They are unused.
 #define BAND_SIZE (24)
@@ -7,7 +6,7 @@
 
 
 
-__global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, int n_tasks, const int32_t k_band_width) 
+__global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, int n_tasks, const int32_t k_band_width)
 {
 	int32_t i, j, k, m, l;
 	int32_t e;
@@ -57,12 +56,12 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 				printf("\n");
 				if (j%8 == 0)
 					printf("\n");
-				
+
 			}
 		}
 		#endif
 	*/
-	
+
 
 	//------------------------
 	for (i = 0; i < MAX_QUERY_LEN; i++) {
@@ -76,7 +75,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 			f[m] = 0;
 			p[m] = 0;
 		}
-		
+
 		uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
 		gidx = i << 3;
 
@@ -108,7 +107,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 						e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);//whether to introduce or extend a gap in target_batch sequence
 						//prev_hm_diff=curr_hm_diff;
 						h[m] = max(h[m], e);
-						
+
 						FIND_MAX(h[m], gidx + (m-1))//the current maximum score and corresponding end position on target_batch sequence
 
 						p[m] = h[m-1];
@@ -121,7 +120,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 					maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 					prev_maxHH = max(maxHH, prev_maxHH);
 					ridx++;
-				
+
 			}
 			//-------------------------------------------------------
 			// 8*8 patch done
@@ -138,7 +137,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 
 }
 
-/* 
+/*
 ######################################################################################
 ######################################################################################
 ########################### KERNELS BELOW ARE DEPRECATED #############################
@@ -148,7 +147,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 
 
 
-__global__ void gasal_banded_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, int n_tasks, int32_t k_band_width) 
+__global__ void gasal_banded_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, int n_tasks, int32_t k_band_width)
 {
 	int32_t i, j, k, m, l;
 	int32_t e;
@@ -197,12 +196,12 @@ __global__ void gasal_banded_kernel(uint32_t *packed_query_batch, uint32_t *pack
 			printf("\n");
 			if (j%8 == 0)
 				printf("\n");
-			
+
 		}
 	}
 	#endif
 	*/
-	
+
 
 	//------------------------
 	for (i = 0; i < MAX_QUERY_LEN; i++) {
@@ -257,7 +256,7 @@ __global__ void gasal_banded_kernel(uint32_t *packed_query_batch, uint32_t *pack
 					e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);//whether to introduce or extend a gap in target_batch sequence
 					//prev_hm_diff=curr_hm_diff;
 					h[m] = max(h[m], e);
-					
+
 					maxXY_y = (maxHH < h[m]) ? (gidx + (m-1)) : maxXY_y;
 					maxHH = (maxHH < h[m]) ? h[m] : maxHH;
 
@@ -288,7 +287,7 @@ __global__ void gasal_banded_kernel(uint32_t *packed_query_batch, uint32_t *pack
 
 }
 
-__global__ void gasal_banded_with_start_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, int32_t *score, int32_t *query_batch_end, int32_t *target_batch_end, int32_t *query_batch_start, int32_t *target_batch_start,int n_tasks, int32_t k_band_width) 
+__global__ void gasal_banded_with_start_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, int32_t *score, int32_t *query_batch_end, int32_t *target_batch_end, int32_t *query_batch_start, int32_t *target_batch_start,int n_tasks, int32_t k_band_width)
 {
 	int32_t i, j, k, m, l;
 	int32_t e;
@@ -336,12 +335,12 @@ __global__ void gasal_banded_with_start_kernel(uint32_t *packed_query_batch, uin
 			printf("\n");
 			if (j%8 == 0)
 				printf("\n");
-			
+
 		}
 	}
 	#endif
 	*/
-	
+
 
 	//------------------------
 	for (i = 0; i < MAX_QUERY_LEN; i++) {
@@ -396,7 +395,7 @@ __global__ void gasal_banded_with_start_kernel(uint32_t *packed_query_batch, uin
 					e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);//whether to introduce or extend a gap in target_batch sequence
 					//prev_hm_diff=curr_hm_diff;
 					h[m] = max(h[m], e);
-						
+
 					FIND_MAX(h[m], gidx + (m-1))//the current maximum score and corresponding end position on target_batch sequence
 					p[m] = h[m-1];
 					}
@@ -539,7 +538,7 @@ __global__ void gasal_banded_fixed_kernel(uint32_t *packed_query_batch, uint32_t
 	uint32_t packed_query_batch_idx = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
 	uint32_t read_len = query_batch_lens[tid];
 	//uint32_t ref_len = target_batch_lens[tid];  // - unused in case of square matrix computation.
-	uint32_t query_batch_regs = (read_len >> 3) + (read_len&7 ? 1 : 0);//number of 32-bit words holding query_batch sequence 
+	uint32_t query_batch_regs = (read_len >> 3) + (read_len&7 ? 1 : 0);//number of 32-bit words holding query_batch sequence
 	//uint32_t target_batch_regs = (ref_len >> 3) + (ref_len&7 ? 1 : 0);//number of 32-bit words holding target_batch sequence - unused in case of square matrix computation.
 	//-----arrays for saving intermediate values------
 	short2 global[BAND_SIZE];
@@ -564,14 +563,14 @@ __global__ void gasal_banded_fixed_kernel(uint32_t *packed_query_batch, uint32_t
 		register uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
 		gidx = i << 3;
 		ridx = __MOD(i<<3);
-		
+
 		#pragma unroll 8
 		for (int b = 0; b < 8; b++)
 		{
 			global[__MOD((i-1)<<3)] = initHD;
 		}
-		
-		
+
+
 		for (j = MIN(i, BAND_SIZE) ; j < BAND_SIZE ; j++ ) { //query_batch sequence in columns
 			register uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 bases from query_batch sequence
 
@@ -587,7 +586,7 @@ __global__ void gasal_banded_fixed_kernel(uint32_t *packed_query_batch, uint32_t
 
 				#pragma unroll 8
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
-					
+
 					register uint32_t gbase = (gpac >> l) & 15;//get a base from target_batch sequence
 					DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);//check equality of rbase and gbase
 					//int32_t curr_hm_diff = h[m] - _cudaGapOE;
@@ -598,11 +597,11 @@ __global__ void gasal_banded_fixed_kernel(uint32_t *packed_query_batch, uint32_t
 					e = max(h[m - 1] - _cudaGapOE, e - _cudaGapExtend);//whether to introduce or extend a gap in target_batch sequence
 					//prev_hm_diff=curr_hm_diff;
 					h[m] = max(h[m], e);
-				
+
 					FIND_MAX(h[m], gidx + (m-1))//the current maximum score and corresponding end position on target_batch sequence
 
 					p[m] = h[m-1];
-					
+
 				}
 				//----------save intermediate values------------
 				HD.x = h[m-1];
@@ -627,4 +626,3 @@ __global__ void gasal_banded_fixed_kernel(uint32_t *packed_query_batch, uint32_t
 
 }
 */
-#endif

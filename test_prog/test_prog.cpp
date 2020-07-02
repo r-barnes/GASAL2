@@ -1,9 +1,10 @@
 #include <gasal2/gasal_header.h>
 
-#include <vector>
-#include <unistd.h>
+#include <iostream>
 #include <math.h>
 #include <omp.h>
+#include <unistd.h>
+#include <vector>
 #include "Timer.h"
 
 #define NB_STREAMS 2

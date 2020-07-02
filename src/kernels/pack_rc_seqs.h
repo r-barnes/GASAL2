@@ -1,6 +1,4 @@
-#ifndef __KERNEL_SEQPAK__
-#define __KERNEL_SEQPAK__
-
+#pragma once
 
 #define A_PAK ('A'&0x0F)
 #define C_PAK ('C'&0x0F)
@@ -59,7 +57,7 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;//thread ID
 
 	if (tid >= n_tasks) return;
-	if (query_op[tid] == 0 && target_op[tid] == 0) return;		// if there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP. 
+	if (query_op[tid] == 0 && target_op[tid] == 0) return;		// if there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
 
 
 	uint32_t packed_target_batch_idx = target_batch_offsets[tid] >> 3;//starting index of the target_batch sequence
@@ -73,7 +71,7 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 	uint32_t target_batch_regs_to_swap = (target_batch_regs >> 1) + (target_batch_regs & 1); // that's (target_batch_regs / 2) + 1 if it's odd, + 0 otherwise. Used for reverse (we start a both ends, and finish at the center of the sequence)
 
 
-	// variables used dependent on target and query: 
+	// variables used dependent on target and query:
 
 	uint8_t *op = NULL;
 	uint32_t *packed_batch = NULL;
@@ -108,13 +106,13 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 
 		if (*(op + tid) & 0x01) // reverse
 		{
-			// deal with N's : read last word, find how many N's, store that number as offset, and pad with that many for the last 
+			// deal with N's : read last word, find how many N's, store that number as offset, and pad with that many for the last
 			uint8_t nbr_N = 0;
 			for (int j = 0; j < 32; j = j + 4)
 			{
 				nbr_N += (((*(packed_batch + *(packed_batch_idx) + *(batch_regs)-1) & (0x0F << j)) >> j) == N_CODE);
 			}
-			
+
 			//printf("KERNEL_DEBUG: nbr_N=%d\n", nbr_N);
 
 
@@ -124,12 +122,12 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 			{
 				/* This  is the current operation flow:\
 					- Read the first 32-bits word on HEAD
-					- Combine the reads of 2 last 32-bits words on tail to create the 32-bits word WITHOUT N's 
-					- Swap them 
-					- Write them at the correct places. Remember we're building 32-bits words across two 32-bits words on tail. 
+					- Combine the reads of 2 last 32-bits words on tail to create the 32-bits word WITHOUT N's
+					- Swap them
+					- Write them at the correct places. Remember we're building 32-bits words across two 32-bits words on tail.
 					So we have to take care of which bits are to be written on tail, too.
 
-				You progress through both heads and tails that way, until you reach the center of the sequence. 
+				You progress through both heads and tails that way, until you reach the center of the sequence.
 				When you reach it, you actually don't write one of the words to avoid overwrite.
 				*/
 				uint32_t rpac_1 = *(packed_batch + *(packed_batch_idx) + i); //load 8 packed bases from head
@@ -141,7 +139,7 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 
 
 				#pragma unroll 8
-				for(int k = 28; k >= 0; k = k - 4)		// reverse 32-bits word... is pragma-unrolled. 
+				for(int k = 28; k >= 0; k = k - 4)		// reverse 32-bits word... is pragma-unrolled.
 				{
 					reverse_rpac_1 |= ((rpac_1 & (0x0F << k)) >> (k)) << (28-k);
 					reverse_rpac_2 |= ((rpac_2 & (0x0F << k)) >> (k)) << (28-k);
@@ -152,7 +150,7 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 				uint32_t to_queue_1 = (reverse_rpac_1 << nbr_N) | ((*(packed_batch + *(packed_batch_idx) + *(batch_regs)-1 - i)) & ((1<<nbr_N) - 1));
 				uint32_t to_queue_2 = ((*(packed_batch + *(packed_batch_idx) + *(batch_regs)-2 - i)) & (0xFFFFFFFF - ((1<<nbr_N) - 1))) | (reverse_rpac_1 >> (32-nbr_N));
 
-			
+
 				//printf("KERNEL DEBUG: rpac_1 Word before reverse: %x, after: %x, split into %x + %x \n", rpac_1, reverse_rpac_1, to_queue_2, to_queue_1 );
 				//printf("KERNEL DEBUG: rpac_2 Word before reverse: %x, after: %x\n", rpac_2, reverse_rpac_2 );
 
@@ -174,7 +172,7 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 				uint32_t nucleotide = 0;
 
 				#pragma unroll 8
-				for(int k = 28; k >= 0; k = k - 4)		// complement 32-bits word... is pragma-unrolled. 
+				for(int k = 28; k >= 0; k = k - 4)		// complement 32-bits word... is pragma-unrolled.
 				{
 					nucleotide = (rpac & (0x0F << k)) >> (k);
 					switch(nucleotide)
@@ -210,4 +208,3 @@ __global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint
 
 	return;
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef __KERNEL_GLOBAL__
-#define __KERNEL_GLOBAL__
+#pragma once
 
 #define CORE_GLOBAL_COMPUTE() \
 		uint32_t gbase = (gpac >> l) & 15;\
@@ -65,8 +64,8 @@ __global__ void gasal_global_kernel(uint32_t *packed_query_batch, uint32_t *pack
 	for (i = 0; i < target_batch_regs; i++) { //target_batch sequence in rows, for all WORDS (i=WORD index)
 		ridx = 0;
 		for (m = 1; m < 9; m++, u++, r++) {
-			h[m] = -(_cudaGapO + (_cudaGapExtend*(u))); 
-			f[m] = MINUS_INF; 
+			h[m] = -(_cudaGapO + (_cudaGapExtend*(u)));
+			f[m] = MINUS_INF;
 			p[m] = r == 1 ? 0 : -(_cudaGapO + (_cudaGapExtend*(r-1)));
 		}
 		register uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
@@ -295,10 +294,9 @@ __global__ void gasal_global_kernel(uint32_t *packed_query_batch, uint32_t *pack
 		}
 
 	}
-	
+
 	device_res->aln_score[tid] = max_h[8 - ((target_batch_regs << 3) - (ref_len))];//copy the max score to the output array in the GPU mem
 
 	return;
 
 }
-#endif

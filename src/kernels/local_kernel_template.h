@@ -1,6 +1,4 @@
-#ifndef __LOCAL_KERNEL_TEMPLATE__
-#define __LOCAL_KERNEL_TEMPLATE__
-
+#pragma once
 
 // This old core provides the same result as the currently LOCAL core, but lacks some optimization. Left for historical / comparative purposes.
 #define CORE_LOCAL_DEPRECATED_COMPUTE() \
@@ -62,7 +60,7 @@
 
 
 
-/* typename meaning : 
+/* typename meaning :
     - T is the algorithm type (LOCAL, MICROLOCAL)
     - S is WITH_ or WIHTOUT_START
     - B is for computing the Second Best Score. Its values are on enum FALSE(0)/TRUE(1).
@@ -78,7 +76,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 	int32_t e;
 
     int32_t maxHH = 0; //initialize the maximum score to zero
-	int32_t maxXY_y = 0; 
+	int32_t maxXY_y = 0;
 
     int32_t prev_maxHH = 0;
     int32_t maxXY_x = 0;
@@ -87,7 +85,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 
     int32_t maxHH_second __attribute__((unused)); // __attribute__((unused)) to avoid raising errors at compilation. most template-kernels don't use these.
-    int32_t prev_maxHH_second __attribute__((unused)); 
+    int32_t prev_maxHH_second __attribute__((unused));
     int32_t maxXY_x_second __attribute__((unused));
     int32_t maxXY_y_second __attribute__((unused));
     maxHH_second = 0;
@@ -101,7 +99,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 	int32_t ridx, gidx;
 	short2 HD;
 	short2 initHD = make_short2(0, 0);
-	
+
 	uint32_t packed_target_batch_idx = target_batch_offsets[tid] >> 3; //starting index of the target_batch sequence
 	uint32_t packed_query_batch_idx = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
 	uint32_t read_len = query_batch_lens[tid];
@@ -114,7 +112,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 	int32_t f[9];
 	int32_t p[9];
 	//--------------------------------------------
-    
+
     for (i = 0; i < MAX_QUERY_LEN; i++) {
         global[i] = initHD;
     }
@@ -125,11 +123,11 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
             f[m] = 0;
             p[m] = 0;
         }
-		
+
 		register uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
 		gidx = i << 3;
 		ridx = 0;
-		
+
 		for (j = 0; j < query_batch_regs; j+=1) { //query_batch sequence in columns
 			register uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 bases from query_batch sequence
 
@@ -449,7 +447,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
         int32_t rend_reg = ((rend_pos >> 3) + 1) < query_batch_regs ? ((rend_pos >> 3) + 1) : query_batch_regs;
         //the index of 32-bit word containing to end position on target_batch sequence
         int32_t gend_reg = ((gend_pos >> 3) + 1) < target_batch_regs ? ((gend_pos >> 3) + 1) : target_batch_regs;
-        
+
 
 
         packed_query_batch_idx += (rend_reg - 1);
@@ -491,7 +489,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
                     for (l = 0, m = 1; l <= 28; l += 4, m++) {
                             CORE_LOCAL_COMPUTE_START();
                     }
-                    
+
                     //------------save intermediate values----------------
                     HD.x = h[m-1];
                     HD.y = e;
@@ -517,4 +515,3 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 
 }
-#endif

@@ -1,6 +1,4 @@
-#ifndef __CTORS_H__
-#define __CTORS_H__
-
+#pragma once
 
 gasal_gpu_storage_v gasal_init_gpu_storage_v(int n_streams);
 
@@ -13,5 +11,3 @@ void gasal_gpu_mem_free(gasal_gpu_storage_t *gpu_storage, Parameters *params);
 void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *params);
 
 void gasal_destroy_gpu_storage_v(gasal_gpu_storage_v *gpu_storage_vec);
-
-#endif

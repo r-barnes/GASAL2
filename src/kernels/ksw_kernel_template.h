@@ -1,6 +1,4 @@
-#ifndef __KSW_KERNEL_TEMPLATE__
-#define __KSW_KERNEL_TEMPLATE__
-
+#pragma once
 
 // This old core provides the same result as the currently LOCAL core, but lacks some optimization. Left for historical / comparative purposes.
 #define CORE_LOCAL_DEPRECATED_COMPUTE() \
@@ -20,11 +18,11 @@
 #define PEN_CLIP5 (5)
 #define TILE_SIDE (8)
 
-/* typename meaning : 
+/* typename meaning :
     - B is for computing the Second Best Score. Its values are on enum FALSE(0)/TRUE(1).
     (sidenote: it's based on an enum instead of a bool in order to generalize its type from its Int value, with Int2Type meta-programming-template)
 */
-/* 
+/*
     //! Note from the bwa-gasal2 coder : I failed to understand it, so I copied it.
     //! You can say to me...
     You cheated not only the game, but yourself.
@@ -79,13 +77,13 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
     eh[1].h = h0 > oe_ins ? h0 - oe_ins : 0;
     for (j = 2; j <= qlen && eh[j - 1].h > e_ins; ++j)
         eh[j].h = eh[j - 1].h - e_ins;
-   
+
     // DP loop
     max = h0, max_i = max_j = -1;
     max_ie = -1, gscore = -1;
     max_off = 0;
     beg = 0, end = qlen;
-    
+
     for (target_tile_id = 0; target_tile_id < target_batch_regs; target_tile_id++) //target_batch sequence in rows
     {
         gpac = packed_target_batch[packed_target_batch_idx + target_tile_id];//load 8 packed bases from target_batch sequence
@@ -97,7 +95,7 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
 
             if (i >= tlen) // skip padding
                 break;
-            
+
             gbase = (gpac >> (32 - (target_base_id+1)*4 )) & 0x0F; /* get a base from target_batch sequence */
 
             int t, f = 0, h1, m = 0, mj = -1;
@@ -108,8 +106,8 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
                 h1 = 0;
             } else
                 h1 = 0;
-            
-            
+
+
             for(query_tile_id = 0; (query_tile_id < query_batch_regs); query_tile_id++)
             {
                 rpac = packed_query_batch[packed_query_batch_idx + query_tile_id];//load 8 bases from query_batch sequence
@@ -118,7 +116,7 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
                 {
                     j = query_tile_id * TILE_SIDE + query_base_id;
                     if (j < beg)
-                        continue;      
+                        continue;
                     if (j >= end)
                         break;
 
@@ -197,7 +195,3 @@ __global__ void gasal_ksw_kernel(uint32_t *packed_query_batch, uint32_t *packed_
     }
 
 }
-
-
-#endif
-

@@ -3,6 +3,7 @@
 #include <gasal2/interfaces.h>
 #include <gasal2/host_batch.h>
 
+#include <string.h>
 
 // Functions for host batches handling.
 

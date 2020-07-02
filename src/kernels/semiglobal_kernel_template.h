@@ -1,6 +1,4 @@
-#ifndef __KERNEL_SEMIGLOBAL__
-#define __KERNEL_SEMIGLOBAL__
-
+#pragma once
 
 #define CORE_COMPUTE_SEMIGLOBAL_DEPRECATED() \
 	uint32_t gbase = (gpac >> l) & 15;/*get a base from target_batch sequence*/\
@@ -45,7 +43,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 
 	int32_t i, j, k, l, m;
 	int32_t e;
-	
+
 	int32_t maxHH =  MINUS_INF;//initialize the maximum score to -infinity
 	int32_t subScore;
 	int32_t ridx, gidx;
@@ -63,9 +61,9 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 	maxXY_x = ref_len;
 	maxXY_y = read_len;
 
-	
+
     int32_t maxHH_second __attribute__((unused)); // __attribute__((unused)) to avoid raising errors at compilation. most template-kernels don't use these.
-    //int32_t prev_maxHH_second __attribute__((unused)); 
+    //int32_t prev_maxHH_second __attribute__((unused));
     int32_t maxXY_x_second __attribute__((unused));
     int32_t maxXY_y_second __attribute__((unused));
     maxHH_second = MINUS_INF;
@@ -106,14 +104,14 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		p[r++] = 0;
 	}
 
-	for (i = 0; i < target_batch_regs; i++) 
+	for (i = 0; i < target_batch_regs; i++)
 	{ //target_batch sequence in rows
 		gidx = i << 3;
 		ridx = 0;
 
 		if (SAMETYPE(HEAD, Int2Type<TARGET>) || SAMETYPE(HEAD, Int2Type<BOTH>))
 		{
-			for (m = 0; m < 9; m++) 
+			for (m = 0; m < 9; m++)
 			{
 				h[m] = 0;
 				f[m] = MINUS_INF;
@@ -122,8 +120,8 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		} else {
 			for (m = 1; m < 9; m++, u++, r++)
 			{
-				h[m] = -(_cudaGapO + (_cudaGapExtend*(u-1))); 
-				f[m] = MINUS_INF; 
+				h[m] = -(_cudaGapO + (_cudaGapExtend*(u-1)));
+				f[m] = MINUS_INF;
 				p[m] = r == 1 ? 0 : -(_cudaGapO + (_cudaGapExtend*(r-1)));
 			}
 		}
@@ -132,11 +130,11 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		register uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
 
 		for (j = 0; j < query_batch_regs; /*++j*/ j+=1) //query_batch sequence in columns
-		{ 
+		{
 			register uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 packed bases from query_batch sequence
 
 			//--------------compute a tile of 8x8 cells-------------------
-			for (k = 28; k >= 0; k -= 4) 
+			for (k = 28; k >= 0; k -= 4)
 			{
 				uint32_t rbase = (rpac >> k) & 15;//get a base from query_batch sequence
 				//------------load intermediate values----------------------
@@ -146,7 +144,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 				//----------------------------------------------------------
 				int32_t prev_hm_diff = h[0] - _cudaGapOE;
 				#pragma unroll 8
-				for (l = 28, m = 1; m < 9; l -= 4, m++) 
+				for (l = 28, m = 1; m < 9; l -= 4, m++)
 				{
 					CORE_COMPUTE_SEMIGLOBAL();
 				}
@@ -157,9 +155,9 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 				ridx++;
 
 				//------the last line of DP matrix------------
-				if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>)) 
-				{ 
-					if (ridx == read_len) 
+				if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+				{
+					if (ridx == read_len)
 					{
 						//----find the maximum and the corresponding end position-----------
 						for (m = 1; m < 9; m++)
@@ -170,7 +168,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 							if (SAMETYPE(B, Int2Type<TRUE>))
 							{
 								bool override_second = (h[m] > maxHH_second && h[m] < maxHH && (gidx + m - 1) < ref_len);
-								maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second; 
+								maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
 								maxHH_second = (override_second) ? h[m] : maxHH_second;
 							}
 						}
@@ -182,7 +180,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 	} // endfor() on targt words
 
 
-	if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>)) 
+	if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>))
 	{
 		for (m = 0; m < MAX_QUERY_LEN; m++)
 		{
@@ -195,7 +193,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 			if (SAMETYPE(B, Int2Type<TRUE>))
 			{
 				bool override_second = (score_tmp > maxHH_second && score_tmp < maxHH && m < ref_len);
-				maxXY_x_second = (override_second) ? m : maxXY_x_second; 
+				maxXY_x_second = (override_second) ? m : maxXY_x_second;
 				maxHH_second = (override_second) ? score_tmp : maxHH_second;
 			}
 
@@ -303,7 +301,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 			ridx = 0;
 			if (SAMETYPE(HEAD, Int2Type<TARGET>) || SAMETYPE(HEAD, Int2Type<BOTH>))
 			{
-				for (m = 0; m < 9; m++) 
+				for (m = 0; m < 9; m++)
 				{
 					h[m] = 0;
 					f[m] = MINUS_INF;
@@ -312,8 +310,8 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 			} else {
 				for (m = 1; m < 9; m++, u++, r++)
 				{
-					h[m] = -(_cudaGapO + (_cudaGapExtend*(u-1))); 
-					f[m] = MINUS_INF; 
+					h[m] = -(_cudaGapO + (_cudaGapExtend*(u-1)));
+					f[m] = MINUS_INF;
 					p[m] = r == 1 ? 0 : -(_cudaGapO + (_cudaGapExtend*(r-1)));
 				}
 			}
@@ -342,12 +340,12 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 					ridx++;
 
 					//------the last line of DP matrix------------
-					if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>)) 
-					{ 
-						if (ridx == read_len) 
+					if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+					{
+						if (ridx == read_len)
 						{
 							//----find the maximum and the corresponding end position-----------
-							for (m = 1; m < 9; m++) 
+							for (m = 1; m < 9; m++)
 							{
 								maxXY_y = (h[m] > maxHH && (gidx + m - 1) < ref_len) ? gidx + (m-1) : maxXY_y;
 								maxHH = (h[m] > maxHH && (gidx + m - 1) < ref_len) ? h[m] : maxHH;
@@ -357,9 +355,9 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 				} // endfor() computing tile
 			} // endfor() on query words
 		} // endfor() on target words
-		
 
-		if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>)) 
+
+		if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>))
 		{
 			for (m = 0; m < MAX_QUERY_LEN; m++)
 			{
@@ -386,4 +384,3 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 	return;
 
 }
-#endif

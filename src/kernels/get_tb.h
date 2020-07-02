@@ -1,5 +1,4 @@
-#ifndef __GET_TB__
-#define __GET_TB__
+#pragma once
 
 template <typename T>
 __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *cigar_offset, uint4 *packed_tb_matrices, gasal_res_t *device_res, int n_tasks) {
@@ -147,4 +146,3 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 
 
 }
-#endif

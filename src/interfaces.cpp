@@ -3,6 +3,8 @@
 #include <gasal2/interfaces.h>
 #include <gasal2/res.h>
 
+#include <string.h>
+
 
 // Function for general resizing
 template <typename T>

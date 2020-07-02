@@ -1,5 +1,5 @@
-#ifndef __GASAL_ALIGN_H__
-#define __GASAL_ALIGN_H__
+#pragma once
+
 /*  ####################################################################################
     SEMI_GLOBAL Kernels generation - read from the bottom one, all the way up. (the most specialized ones are written before the ones that call them)
     ####################################################################################
@@ -34,7 +34,7 @@
 
 /*  ####################################################################################
     ALGORITHMS Kernels generation. Allows to have a single line written for all kernels calls. The switch-cases are MACRO-generated.
-    #################################################################################### 
+    ####################################################################################
 */
 
 #define SWITCH_SEMI_GLOBAL(a,s,h,t,b) SWITCH_SEMI_GLOBAL_HEAD(a,s,h,t,b)
@@ -81,7 +81,7 @@
 break;
 
 /*  ####################################################################################
-    RUN PARAMETERS calls : general call (bottom, should be used), and first level TRUE/FALSE calculation for second best, 
+    RUN PARAMETERS calls : general call (bottom, should be used), and first level TRUE/FALSE calculation for second best,
     then 2nd level WITH / WITHOUT_START switch call (top)
     ####################################################################################
 */
@@ -118,5 +118,3 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type algo, comp_start start, gasal_gpu_storage_t *gpu_storage, int32_t actual_n_alns, int32_t k_band);
 
 int gasal_is_aln_async_done(gasal_gpu_storage_t *gpu_storage);
-
-#endif
