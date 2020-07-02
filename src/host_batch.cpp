@@ -22,7 +22,7 @@ host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 
 void gasal_host_batch_destroy(host_batch_t *res)
 {
-	if (res==NULL)
+	if (!res)
 	{
 		std::cerr<<"[GASAL ERROR] Trying to free a NULL pointer"<<std::endl;
 		exit(1);

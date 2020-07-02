@@ -19,10 +19,10 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 
 
 	if (params.algo == GLOBAL) {
-		res->query_batch_start = NULL;
-		res->target_batch_start = NULL;
-		res->query_batch_end = NULL;
-		res->target_batch_end = NULL;
+		res->query_batch_start = nullptr;
+		res->target_batch_start = nullptr;
+		res->query_batch_end = nullptr;
+		res->target_batch_end = nullptr;
 	} else {
 		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
@@ -33,8 +33,8 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 		} else {
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
-			res->query_batch_start = NULL;
-			res->target_batch_start = NULL;
+			res->query_batch_start = nullptr;
+			res->target_batch_start = nullptr;
 		}
 
 	}
@@ -69,43 +69,44 @@ gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 
 gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &params)
 {
-	gasal_res_t *const res = (gasal_res_t *)malloc(sizeof(gasal_res_t));
+	gasal_res_t *const res = new gasal_res_t();
 
 	CHECKCUDAERROR(cudaMalloc(&(res->aln_score), max_n_alns * sizeof(int32_t)));
 
 	if (params.algo == GLOBAL) {
-		res->query_batch_start = NULL;
-		res->target_batch_start = NULL;
-		res->query_batch_end = NULL;
-		res->target_batch_end = NULL;
+		res->query_batch_start  = nullptr;
+		res->target_batch_start = nullptr;
+		res->query_batch_end    = nullptr;
+		res->target_batch_end   = nullptr;
 	} else {
 		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_start),  max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start), max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),    max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),   max_n_alns * sizeof(uint32_t)));
 		} else {
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),    max_n_alns * sizeof(uint32_t)));
+			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),   max_n_alns * sizeof(uint32_t)));
 
-			res->query_batch_start = NULL;
-			res->target_batch_start = NULL;
+			res->query_batch_start = nullptr;
+			res->target_batch_start = nullptr;
 		}
 	}
+
 	return res;
 }
 
 // TODO : make 2 destroys for host and device
 void gasal_res_destroy_host(gasal_res_t *res){
-	if (res == NULL)
+	if (!res)
 		return;
 
-	if (res->aln_score != NULL) CHECKCUDAERROR(cudaFreeHost(res->aln_score));
-	if (res->query_batch_start != NULL) CHECKCUDAERROR(cudaFreeHost(res->query_batch_start));
-	if (res->target_batch_start != NULL) CHECKCUDAERROR(cudaFreeHost(res->target_batch_start));
-	if (res->query_batch_end != NULL) CHECKCUDAERROR(cudaFreeHost(res->query_batch_end));
-	if (res->target_batch_end != NULL) CHECKCUDAERROR(cudaFreeHost(res->target_batch_end));
-	// if (res->n_cigar_ops != NULL) CHECKCUDAERROR(cudaFreeHost(res->n_cigar_ops)); //TODO
+	if (res->aln_score)          CHECKCUDAERROR(cudaFreeHost(res->aln_score));
+	if (res->query_batch_start)  CHECKCUDAERROR(cudaFreeHost(res->query_batch_start));
+	if (res->target_batch_start) CHECKCUDAERROR(cudaFreeHost(res->target_batch_start));
+	if (res->query_batch_end)    CHECKCUDAERROR(cudaFreeHost(res->query_batch_end));
+	if (res->target_batch_end)   CHECKCUDAERROR(cudaFreeHost(res->target_batch_end));
+	// if (res->n_cigar_ops)        CHECKCUDAERROR(cudaFreeHost(res->n_cigar_ops)); //TODO
 
 	free(res);
 }
@@ -114,12 +115,12 @@ void gasal_res_destroy_device(gasal_res_t *device_res, gasal_res_t *device_cpy){
 	if (device_cpy == NULL || device_res == NULL)
 		return;
 
-	if (device_cpy->aln_score != NULL) CHECKCUDAERROR(cudaFree(device_cpy->aln_score));
-	if (device_cpy->query_batch_start != NULL) CHECKCUDAERROR(cudaFree(device_cpy->query_batch_start));
-	if (device_cpy->target_batch_start != NULL) CHECKCUDAERROR(cudaFree(device_cpy->target_batch_start));
-	if (device_cpy->query_batch_end != NULL) CHECKCUDAERROR(cudaFree(device_cpy->query_batch_end));
-	if (device_cpy->target_batch_end != NULL) CHECKCUDAERROR(cudaFree(device_cpy->target_batch_end));
-	if (device_cpy->cigar != NULL) CHECKCUDAERROR(cudaFree(device_cpy->cigar));
+	if (device_cpy->aln_score)          CHECKCUDAERROR(cudaFree(device_cpy->aln_score));
+	if (device_cpy->query_batch_start)  CHECKCUDAERROR(cudaFree(device_cpy->query_batch_start));
+	if (device_cpy->target_batch_start) CHECKCUDAERROR(cudaFree(device_cpy->target_batch_start));
+	if (device_cpy->query_batch_end)    CHECKCUDAERROR(cudaFree(device_cpy->query_batch_end));
+	if (device_cpy->target_batch_end)   CHECKCUDAERROR(cudaFree(device_cpy->target_batch_end));
+	if (device_cpy->cigar)              CHECKCUDAERROR(cudaFree(device_cpy->cigar));
 
 	CHECKCUDAERROR(cudaFree(device_res));
 
