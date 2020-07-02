@@ -22,27 +22,27 @@ class Parameters{
         void parse();
         void fileopen();
 
-        int32_t sa;
-        int32_t sb;
-        int32_t gapo;
-        int32_t gape;
-        comp_start start_pos;
-        int print_out;
-        int n_threads;
-        int32_t k_band;
+        int32_t sa   = 1;
+        int32_t sb   = 4;
+        int32_t gapo = 6;
+        int32_t gape = 1;
+        comp_start start_pos = WITHOUT_START;
+        int print_out  = 0;
+        int n_threads  = 1;
+        int32_t k_band = 0;
 
-        Bool secondBest;
+        Bool secondBest = FALSE;
 
-        bool isPacked;
-        bool isReverseComplement;
+        bool isPacked = false;
+        bool isReverseComplement = false;
 
-        data_source semiglobal_skipping_head;
-        data_source semiglobal_skipping_tail;
+        data_source semiglobal_skipping_head = TARGET;
+        data_source semiglobal_skipping_tail = TARGET;
 
-        algo_type algo;
+        algo_type algo = UNKNOWN;
 
-        std::string query_batch_fasta_filename;
-        std::string target_batch_fasta_filename;
+        std::string query_batch_fasta_filename = "";
+        std::string target_batch_fasta_filename = "";
 
         std::ifstream query_batch_fasta;
         std::ifstream target_batch_fasta;

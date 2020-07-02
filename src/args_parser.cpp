@@ -6,31 +6,6 @@
 
 
 Parameters::Parameters(int argc_, char **argv_) {
-    // default values
-    sa = (1);
-    sb = (4);
-    gapo = (6);
-    gape = (1);
-    start_pos = (WITHOUT_START);
-    print_out = (0);
-    n_threads = (1);
-
-    k_band = (0);
-
-    isPacked = false;
-    isReverseComplement = false;
-
-    secondBest = FALSE;
-
-    // query head, target head, query tail, target tail
-    semiglobal_skipping_head = TARGET;
-    semiglobal_skipping_tail = TARGET;
-
-    algo = (UNKNOWN);
-
-    query_batch_fasta_filename = "";
-    target_batch_fasta_filename = "";
-
     argc = argc_;
     argv = argv_;
 }
