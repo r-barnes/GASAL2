@@ -77,3 +77,8 @@ execute_process(
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/test_prog/target_batch.fasta.tar.gz
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/
 )
+
+
+
+add_executable(unittests
+  unittests/test_main.cpp)
