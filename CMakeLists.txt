@@ -81,4 +81,7 @@ execute_process(
 
 
 add_executable(unittests
-  unittests/test_main.cpp)
+  unittests/test_main.cpp
+  unittests/packing.cu
+)
+target_link_libraries(unittests PRIVATE gasal2)
