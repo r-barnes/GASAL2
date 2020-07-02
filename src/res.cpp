@@ -40,14 +40,13 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 
 gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 {
-
-    // create class storage on device and copy top level class
-    gasal_res_t *d_c;
-    CHECKCUDAERROR(cudaMalloc((void **)&d_c, sizeof(gasal_res_t)));
+  // create class storage on device and copy top level class
+  gasal_res_t *d_c;
+  CHECKCUDAERROR(cudaMalloc((void **)&d_c, sizeof(gasal_res_t)));
 	//    CHECKCUDAERROR(cudaMemcpy(d_c, res, sizeof(gasal_res_t), cudaMemcpyHostToDevice));
 
-    // copy pointer to allocated device storage to device class
-    CHECKCUDAERROR(cudaMemcpy(&(d_c->aln_score), &(device_cpy->aln_score), sizeof(int32_t*), cudaMemcpyHostToDevice));
+  // copy pointer to allocated device storage to device class
+  CHECKCUDAERROR(cudaMemcpy(&(d_c->aln_score), &(device_cpy->aln_score), sizeof(int32_t*), cudaMemcpyHostToDevice));
 	CHECKCUDAERROR(cudaMemcpy(&(d_c->query_batch_start), &(device_cpy->query_batch_start), sizeof(int32_t*), cudaMemcpyHostToDevice));
 	CHECKCUDAERROR(cudaMemcpy(&(d_c->target_batch_start), &(device_cpy->target_batch_start), sizeof(int32_t*), cudaMemcpyHostToDevice));
 	CHECKCUDAERROR(cudaMemcpy(&(d_c->query_batch_end), &(device_cpy->query_batch_end), sizeof(int32_t*), cudaMemcpyHostToDevice));
