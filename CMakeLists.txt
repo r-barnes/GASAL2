@@ -24,13 +24,15 @@ endif()
 
 add_library(gasal2
   src/args_parser.cpp
-  src/host_batch.cpp
   src/ctors.cpp
-  src/interfaces.cpp
-  src/res.cpp
   src/gasal_align.cu
-  src/kernels/pack_rc_seqs.cu
+  src/host_batch.cpp
+  src/interfaces.cpp
+  src/read_fasta.cpp
+  src/res.cpp
+
   src/kernels/banded.cu
+  src/kernels/pack_rc_seqs.cu
 )
 target_include_directories(gasal2 PUBLIC include src)
 
@@ -84,5 +86,8 @@ add_executable(unittests
   unittests/test_main.cpp
   unittests/packing.cu
   unittests/test_timer.cpp
+  unittests/test_read_fasta.cpp
 )
 target_link_libraries(unittests PRIVATE gasal2)
+
+configure_file(unittests/test.fasta ${CMAKE_BINARY_DIR}/test.fasta COPYONLY)
