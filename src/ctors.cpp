@@ -18,7 +18,6 @@ gasal_gpu_storage_v gasal_init_gpu_storage_v(int n_streams) {
 
 
 void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns, const Parameters &params) {
-	cudaError_t err;
 	int max_query_len_8 = max_query_len % 8 ? max_query_len + (8 - (max_query_len % 8)) : max_query_len;
 	int max_target_len_8 = max_target_len % 8 ? max_target_len + (8 - (max_target_len % 8)) : max_target_len;
 
@@ -28,8 +27,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 	int gpu_max_target_batch_bytes =  max_n_alns * max_target_len_8;
 	int host_max_n_alns = max_n_alns;
 	int gpu_max_n_alns = max_n_alns;
-
-
 
 	for (int i = 0; i < gpu_storage_vec->n; i++) {
 		gpu_storage_vec->a[i].extensible_host_unpacked_query_batch = gasal_host_batch_new(host_max_query_batch_bytes, 0);
@@ -83,12 +80,10 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 		gpu_storage_vec->a[i].device_cpy = gasal_res_new_device_cpy(max_n_alns, params);
 		gpu_storage_vec->a[i].device_res = gasal_res_new_device(gpu_storage_vec->a[i].device_cpy);
 
-		if (params.secondBest)
-		{
+		if (params.secondBest){
 			gpu_storage_vec->a[i].host_res_second = gasal_res_new_host(host_max_n_alns, params);
 			gpu_storage_vec->a[i].device_cpy_second = gasal_res_new_device_cpy(host_max_n_alns, params);
 			gpu_storage_vec->a[i].device_res_second = gasal_res_new_device(gpu_storage_vec->a[i].device_cpy_second);
-
 		} else {
 			gpu_storage_vec->a[i].host_res_second = NULL;
 			gpu_storage_vec->a[i].device_cpy_second = NULL;
@@ -113,8 +108,6 @@ void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len
 }
 
 void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, const Parameters &params) {
-	cudaError_t err;
-
 	for (int i = 0; i < gpu_storage_vec->n; i ++) {
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_query_batch);
 		gasal_host_batch_destroy(gpu_storage_vec->a[i].extensible_host_unpacked_target_batch);

@@ -10,8 +10,8 @@
 
 #define CHECKCUDAERROR(error) \
 		do{\
-			err = error;\
-			if (cudaSuccess != err ) { \
+		  const auto err=(error); \
+			if (err!=cudaSuccess) { \
 				fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(err), err,  __LINE__, __FILE__); \
 				exit(EXIT_FAILURE);\
 			}\

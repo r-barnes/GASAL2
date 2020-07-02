@@ -6,7 +6,6 @@
 
 gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 {
-	cudaError_t err;
 
 	gasal_res_t *const res = (gasal_res_t *)malloc(sizeof(gasal_res_t));
 
@@ -49,7 +48,6 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 
 gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 {
-	cudaError_t err;
 
     // create class storage on device and copy top level class
     gasal_res_t *d_c;
@@ -71,7 +69,6 @@ gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 
 gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &params)
 {
-	cudaError_t err;
 	gasal_res_t *const res = (gasal_res_t *)malloc(sizeof(gasal_res_t));
 
 	CHECKCUDAERROR(cudaMalloc(&(res->aln_score), max_n_alns * sizeof(int32_t)));
@@ -99,9 +96,7 @@ gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &par
 }
 
 // TODO : make 2 destroys for host and device
-void gasal_res_destroy_host(gasal_res_t *res)
-{
-	cudaError_t err;
+void gasal_res_destroy_host(gasal_res_t *res){
 	if (res == NULL)
 		return;
 
@@ -115,9 +110,7 @@ void gasal_res_destroy_host(gasal_res_t *res)
 	free(res);
 }
 
-void gasal_res_destroy_device(gasal_res_t *device_res, gasal_res_t *device_cpy)
-{
-	cudaError_t err;
+void gasal_res_destroy_device(gasal_res_t *device_res, gasal_res_t *device_cpy){
 	if (device_cpy == NULL || device_res == NULL)
 		return;
 

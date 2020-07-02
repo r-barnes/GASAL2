@@ -31,7 +31,6 @@ void gasal_aln_async(
 	const uint32_t actual_n_alns,
 	const Parameters *params
 ) {
-	cudaError_t err;
 	if (actual_n_alns <= 0) {
 		fprintf(stderr, "[GASAL ERROR:] actual_n_alns <= 0\n");
 		exit(EXIT_FAILURE);
@@ -196,7 +195,7 @@ void gasal_aln_async(
 			actual_query_batch_bytes/4,
 			actual_target_batch_bytes/4
 	  );
-		const cudaError_t pack_kernel_err = cudaGetLastError();
+		const auto pack_kernel_err = cudaGetLastError();
 		if(pack_kernel_err != cudaSuccess){
 	  	fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_kernel_err), pack_kernel_err,  __LINE__, __FILE__);
 		  exit(EXIT_FAILURE);
@@ -330,8 +329,6 @@ int gasal_is_aln_async_done(gasal_gpu_storage_t *gpu_storage)
 
 
 void gasal_copy_subst_scores(gasal_subst_scores *subst){
-
-	cudaError_t err;
 	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapO, &(subst->gap_open), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
 	CHECKCUDAERROR(cudaMemcpyToSymbol(_cudaGapExtend, &(subst->gap_extend), sizeof(int32_t), 0, cudaMemcpyHostToDevice));
 	int32_t gapoe = (subst->gap_open + subst->gap_extend);

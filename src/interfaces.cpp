@@ -10,7 +10,6 @@
 template <typename T>
 T* cudaHostRealloc(void *source, int new_size, int old_size)
 {
-	cudaError_t err;
 	T* destination = NULL;
 	if (new_size < old_size)
 	{

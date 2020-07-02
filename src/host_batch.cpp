@@ -10,7 +10,6 @@
 
 host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 {
-	cudaError_t err;
 	host_batch_t *const res = (host_batch_t *)calloc(1, sizeof(host_batch_t));
 	CHECKCUDAERROR(cudaHostAlloc(&(res->data), batch_bytes*sizeof(uint8_t), cudaHostAllocDefault));
 	res->page_size = batch_bytes;
@@ -23,7 +22,6 @@ host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 
 void gasal_host_batch_destroy(host_batch_t *res)
 {
-	cudaError_t err;
 	if (res==NULL)
 	{
 		std::cerr<<"[GASAL ERROR] Trying to free a NULL pointer"<<std::endl;
