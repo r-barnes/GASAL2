@@ -4,8 +4,9 @@
 #include <math.h>
 #include <omp.h>
 #include <unistd.h>
+#include <string.h>
 #include <vector>
-#include "Timer.h"
+#include <gasal2/Timer.h>
 
 #define NB_STREAMS 2
 
@@ -194,7 +195,7 @@ int main(int argc, char **argv) {
 	std::cerr << "Processing..." << std::endl;
 
 	Timer total_time;
-	total_time.Start();
+	total_time.start();
 	omp_set_num_threads(n_threads);
 	auto *const gpu_storage_vecs = new gasal_gpu_storage_v[n_threads];
 	for (int z = 0; z < n_threads; z++) {
@@ -435,7 +436,7 @@ int main(int argc, char **argv) {
 		gasal_destroy_gpu_storage_v(&(gpu_storage_vecs[z]));
 	}
 	free(gpu_storage_vecs);
-	total_time.Stop();
+	total_time.stop();
 
 	/*
 	string algorithm = al_type;
@@ -450,7 +451,7 @@ int main(int argc, char **argv) {
 	}
 
 	std::cerr << std::endl << "Done" << std::endl;
-	fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.GetTime());
+	fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.getTime());
 
 	return 0;
 }

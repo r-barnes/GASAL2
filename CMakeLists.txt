@@ -83,5 +83,6 @@ execute_process(
 add_executable(unittests
   unittests/test_main.cpp
   unittests/packing.cu
+  unittests/test_timer.cpp
 )
 target_link_libraries(unittests PRIVATE gasal2)
