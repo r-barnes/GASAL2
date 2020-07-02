@@ -18,14 +18,19 @@ inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type 
 		KERNEL_SWITCH(BANDED,		start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
 		default:
 		break;
-
 	}
 
 }
 
 
 //GASAL2 asynchronous (a.k.a non-blocking) alignment function
-void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_query_batch_bytes, const uint32_t actual_target_batch_bytes, const uint32_t actual_n_alns, Parameters *params) {
+void gasal_aln_async(
+	gasal_gpu_storage_t *gpu_storage,
+	const uint32_t actual_query_batch_bytes,
+	const uint32_t actual_target_batch_bytes,
+	const uint32_t actual_n_alns,
+	const Parameters *params
+) {
 	cudaError_t err;
 	if (actual_n_alns <= 0) {
 		fprintf(stderr, "[GASAL ERROR:] actual_n_alns <= 0\n");
@@ -85,11 +90,9 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 			if (gpu_storage->host_res->cigar != NULL)CHECKCUDAERROR(cudaFreeHost(gpu_storage->host_res->cigar));
 			CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage->host_res->cigar), gpu_storage->gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
 		}
-
 	}
 
 	if (gpu_storage->gpu_max_target_batch_bytes < actual_target_batch_bytes) {
-
 		int i = 2;
 		while ( (gpu_storage->gpu_max_target_batch_bytes * i) < actual_target_batch_bytes) i++;
 
@@ -105,7 +108,6 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 	}
 
 	if (gpu_storage->gpu_max_n_alns < actual_n_alns) {
-
 		int i = 2;
 		while ( (gpu_storage->gpu_max_n_alns * i) < actual_n_alns) i++;
 
@@ -128,13 +130,13 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage->seed_scores), gpu_storage->gpu_max_n_alns * sizeof(uint32_t)));
 
 		gasal_res_destroy_device(gpu_storage->device_res, gpu_storage->device_cpy);
-		gpu_storage->device_cpy = gasal_res_new_device_cpy(gpu_storage->gpu_max_n_alns, params);
+		gpu_storage->device_cpy = gasal_res_new_device_cpy(gpu_storage->gpu_max_n_alns, *params);
 		gpu_storage->device_res = gasal_res_new_device(gpu_storage->device_cpy);
 
 		if (params->secondBest)
 		{
 			gasal_res_destroy_device(gpu_storage->device_res_second, gpu_storage->device_cpy_second);
-			gpu_storage->device_cpy_second = gasal_res_new_device_cpy(gpu_storage->gpu_max_n_alns, params);
+			gpu_storage->device_cpy_second = gasal_res_new_device_cpy(gpu_storage->gpu_max_n_alns, *params);
 			gpu_storage->device_res_second = gasal_res_new_device(gpu_storage->device_cpy_second);
 		}
 
@@ -173,26 +175,31 @@ void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_que
 	//-----------------------------------------------------------------------------------------------------------
 	// TODO: Adjust the block size depending on the kernel execution.
 
-    uint32_t BLOCKDIM = 128;
-    uint32_t N_BLOCKS = (actual_n_alns + BLOCKDIM - 1) / BLOCKDIM;
+    const uint32_t BLOCKDIM = 128;
+    const uint32_t N_BLOCKS = (actual_n_alns + BLOCKDIM - 1) / BLOCKDIM;
 
-    int query_batch_tasks_per_thread = (int)ceil((double)actual_query_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
-    int target_batch_tasks_per_thread = (int)ceil((double)actual_target_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
+    const int query_batch_tasks_per_thread  = (int)ceil((double)actual_query_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
+    const int target_batch_tasks_per_thread = (int)ceil((double)actual_target_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
 
 
     //-------------------------------------------launch packing kernel
 
 
-	if (!(params->isPacked))
-	{
-		gasal_pack_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>((uint32_t*)(gpu_storage->unpacked_query_batch),
-		(uint32_t*)(gpu_storage->unpacked_target_batch), gpu_storage->packed_query_batch, gpu_storage->packed_target_batch,
-		query_batch_tasks_per_thread, target_batch_tasks_per_thread, actual_query_batch_bytes/4, actual_target_batch_bytes/4);
-		cudaError_t pack_kernel_err = cudaGetLastError();
-		if ( cudaSuccess != pack_kernel_err )
-		{
-		fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_kernel_err), pack_kernel_err,  __LINE__, __FILE__);
-		exit(EXIT_FAILURE);
+	if (!(params->isPacked)){
+		gasal_pack_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
+			(uint32_t*)(gpu_storage->unpacked_query_batch),
+			(uint32_t*)(gpu_storage->unpacked_target_batch),
+			gpu_storage->packed_query_batch,
+			gpu_storage->packed_target_batch,
+			query_batch_tasks_per_thread,
+			target_batch_tasks_per_thread,
+			actual_query_batch_bytes/4,
+			actual_target_batch_bytes/4
+	  );
+		const cudaError_t pack_kernel_err = cudaGetLastError();
+		if(pack_kernel_err != cudaSuccess){
+	  	fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_kernel_err), pack_kernel_err,  __LINE__, __FILE__);
+		  exit(EXIT_FAILURE);
 		}
 	}
 

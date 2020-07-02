@@ -296,7 +296,4 @@ __global__ void gasal_global_kernel(uint32_t *packed_query_batch, uint32_t *pack
 	}
 
 	device_res->aln_score[tid] = max_h[8 - ((target_batch_regs << 3) - (ref_len))];//copy the max score to the output array in the GPU mem
-
-	return;
-
 }

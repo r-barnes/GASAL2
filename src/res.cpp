@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, Parameters *params)
+gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 {
 	cudaError_t err;
 
@@ -19,13 +19,13 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, Parameters *params)
 	}
 
 
-	if (params->algo == GLOBAL) {
+	if (params.algo == GLOBAL) {
 		res->query_batch_start = NULL;
 		res->target_batch_start = NULL;
 		res->query_batch_end = NULL;
 		res->target_batch_end = NULL;
 	} else {
-		if (params->start_pos == WITH_START || params->start_pos == WITH_TB) {
+		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
@@ -39,7 +39,7 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, Parameters *params)
 		}
 
 	}
-	if (params->start_pos == WITH_TB) {
+	if (params.start_pos == WITH_TB) {
 		CHECKCUDAERROR(cudaHostAlloc(&(res->n_cigar_ops), max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 	}
 
@@ -69,20 +69,20 @@ gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 
 
 
-gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, Parameters *params)
+gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &params)
 {
 	cudaError_t err;
 	gasal_res_t *const res = (gasal_res_t *)malloc(sizeof(gasal_res_t));
 
 	CHECKCUDAERROR(cudaMalloc(&(res->aln_score), max_n_alns * sizeof(int32_t)));
 
-	if (params->algo == GLOBAL) {
+	if (params.algo == GLOBAL) {
 		res->query_batch_start = NULL;
 		res->target_batch_start = NULL;
 		res->query_batch_end = NULL;
 		res->target_batch_end = NULL;
 	} else {
-		if (params->start_pos == WITH_START || params->start_pos == WITH_TB) {
+		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
 			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t)));
 			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t)));
 			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t)));
@@ -94,7 +94,6 @@ gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, Parameters *params)
 			res->query_batch_start = NULL;
 			res->target_batch_start = NULL;
 		}
-
 	}
 	return res;
 }

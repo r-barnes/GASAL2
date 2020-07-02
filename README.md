@@ -4,17 +4,17 @@ GASAL2 is an easy-to-use CUDA library for DNA/RNA sequence alignment algorithms.
  - semi-global alignment
  - global alignment
  - tile-based banded alignment.
- 
+
 It can also reverse and, or complement any sequences independently before alignment, and report second-best scores for certain alignment types.
 
-It is an extension of GASAL (https://github.com/nahmedraja/GASAL) and allows full overlapping of CPU and GPU execution. 
+It is an extension of GASAL (https://github.com/nahmedraja/GASAL) and allows full overlapping of CPU and GPU execution.
 
 ## List of new features:
 - **Added traceback computation. The ouput is in CIGAR format**
 - **GASAL2 can now compute all types of semi-global alignments**
-- **Added expandable memory management on host side. The batches of query and target sequences are automatically enlarged if the required memory becomes larger than the allocated memory** 
+- **Added expandable memory management on host side. The batches of query and target sequences are automatically enlarged if the required memory becomes larger than the allocated memory**
 - **Added kernel to reverse-complement sequences.**
-- **Cleaned up, inconsistencies fixed, and a small optimization has been added (around 9% speedup with exact same result)** 
+- **Cleaned up, inconsistencies fixed, and a small optimization has been added (around 9% speedup with exact same result)**
 
 
 ## Changes in user interface:
@@ -81,7 +81,7 @@ The streams in the vector are initialized by calling:
 void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns,  Parameters *params);
 ```
 
-In GASAL2, the sequences to be aligned are conatined in two batches. A sequence in query_batch is aligned to sequence in target_batch. A *batch* is a concatenation of sequences. *The length of a sequence must be a multiple of 8*. Hence, if a sequence is not a multiple of 8, `N's` are added at the end of sequence. We call these redundant bases as *Pad bases*. Note that the pad bases are always "N's" irrespective of whether `N_PENALTY` is defined or not. The `gasal_init_streams()` function alloctes the memory required by a stream. With the help of *max_batch_bytes*, the user specifies the expected maxumum size(in bytes) of sequences in the two batches. *host_max_batch_bytes* are pre-allocated on the CPU. Smilarly, *gpu_max_batch_bytes* are pre-allocated on the GPU. *max_n_alns* is the expected maximum number of sequences in a batch. If the actual required GPU memory is more than the pre-allocated memory, GASAL2 automatically allocates more memory. 
+In GASAL2, the sequences to be aligned are conatined in two batches. A sequence in query_batch is aligned to sequence in target_batch. A *batch* is a concatenation of sequences. *The length of a sequence must be a multiple of 8*. Hence, if a sequence is not a multiple of 8, `N's` are added at the end of sequence. We call these redundant bases as *Pad bases*. Note that the pad bases are always "N's" irrespective of whether `N_PENALTY` is defined or not. The `gasal_init_streams()` function alloctes the memory required by a stream. With the help of *max_batch_bytes*, the user specifies the expected maxumum size(in bytes) of sequences in the two batches. *host_max_batch_bytes* are pre-allocated on the CPU. Smilarly, *gpu_max_batch_bytes* are pre-allocated on the GPU. *max_n_alns* is the expected maximum number of sequences in a batch. If the actual required GPU memory is more than the pre-allocated memory, GASAL2 automatically allocates more memory.
 
 Most GASAL2 functions operate with a Parameters object. This object holds all the informations about the alignment options selected. In particular, the alignment type, the default values when opening or extending gaps, etc. The Parameters object is filled like this:
 
@@ -89,7 +89,7 @@ Most GASAL2 functions operate with a Parameters object. This object holds all th
 Parameters *args;
 args = new Parameters(0, NULL);
 
-args->algo = <LOCAL|GLOBAL|SEMI_GLOBAL>; 
+args->algo = <LOCAL|GLOBAL|SEMI_GLOBAL>;
 args->start_pos = <WITHOUT_START|WITH_START|WITH_TB>; //`WITHOUT_START` computes only the score and end-position. `WITH_START` computes the start-position with score and end-position. `WITH_TB` computes the score, start-position, end-position and traceback in CIGAR format.
 args->isReverseComplement = <TRUE|FALSE>; //whether to reverse-complement the query sequence.
 args->semiglobal_skipping_head = <QUERY|TARGET|BOTH|NONE>; //ignore gaps at the begining of QUERY|TARGET|BOTH|NONE in semi alignment-global.
@@ -124,7 +124,7 @@ typedef struct{
 	uint32_t host_max_query_batch_bytes;
 	uint32_t host_max_target_batch_bytes;
 	gasal_res_t *host_res;
-	gasal_res_t *host_res_second; 
+	gasal_res_t *host_res_second;
 	uint32_t host_max_n_alns;
 	uint32_t current_n_alns;
 	int is_free;
@@ -134,7 +134,7 @@ typedef struct{
 
 
 
-To align the sequences the user first need to check the availability of a stream. If `is_free` is  1, the user can use the current stream to perform the alignment on the GPU. 
+To align the sequences the user first need to check the availability of a stream. If `is_free` is  1, the user can use the current stream to perform the alignment on the GPU.
 To do this, the user must fill the sequences with the following function.
 
 ```C
@@ -145,7 +145,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 This function takes a sequence and its length, and append it in the data structure. It also adds the neccessary padding bases to ensure the sequence has a length which is a multiple of 8. Moreover, it takes care of allocating more memory if there is not enough room when adding the sequence. `SRC` is either `QUERY` or `TARGET`, depending upon which batch to fill. When executed, this function returns the offset to be filled by the user in `host_target_batch_offsets` or `host_query_batch_offsets`. The user also has to fill `host_target_batch_lens` or `host_query_batch_lens` with original length of sequences, i.e. length without pad bases. **The offset values include pad bases, whereas lengths are without pad bases**. The number of elements in offset and length arrays must be equal. The offset values allows the user to express the mode of pairwise alignment, i.e. one-to-one, one-to-all or one-to-many etc., between the query and traget sequences. The `current_n_alns` must appropriately be incremented to show the current number of alignments. `host_max_n_alns` is initially set equal to `max_n_alns` in `gasal_init_streams()` function. If the 'current_n_alns' exceeds `host_max_n_alns`, the user must call the following funnction to reallocate host offset, lengths and results arrays.March
 
 ```C
-void gasal_host_alns_resize(gasal_gpu_storage_t *gpu_storage, int new_max_alns, Parameters *params); 
+void gasal_host_alns_resize(gasal_gpu_storage_t *gpu_storage, int new_max_alns, Parameters *params);
 
 ```
 
@@ -171,7 +171,7 @@ March
 To launch the alignment, the following function is used:
 
 ```C
-void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_query_batch_bytes, const uint32_t actual_target_batch_bytes, const uint32_t actual_n_alns, Parameters *params)
+void gasal_aln_async(gasal_gpu_storage_t *gpu_storage, const uint32_t actual_query_batch_bytes, const uint32_t actual_target_batch_bytes, const uint32_t actual_n_alns, const Parameters &params)
 ```
 
 The `actual_query_batch_bytes` and `actual_target_batch_bytes` specify the size of the two batches (in bytes) including the pad bases. `actual_n_alns` is the number of alignments to be performed. GASAL2 internally sets `is_free` to 0 after launching the alignment kernel on the GPU. From the performance prespective, if the average lengths of the sequences in *query_batch* and *target_batch* are not same, then the shorter sequences should be placed in *query_batch*. Fo rexample, in case of read mappers the read sequences are conatined in query_batch and the genome sequences in target_batch.
@@ -210,7 +210,7 @@ The output of alignments are stored in `aln_score`, `query_batch_end`, `target_b
 ```
 The upper 6 bits store the count of the operation in the lower two bits. The traceback information of an alignment in the `cigar` array is in the reverse direction. `host_query_batch_offsets` conatins the offset of an alignment in the `cigar` array. The `n_cigar_ops` contains number of bytes in the cigar array encoding the traceback information of an alignment.
 
-In case of second-best result, the same applies with the fields in `host_res_secondbest`. But the start-position and traceback( is only computed with the best score. Therefore, only `host_res_secondbest->aln_score`, `host_res_secondbest->query_batch_end` and `host_res_secondbest->target_batch_end` are valid for second-best result. 
+In case of second-best result, the same applies with the fields in `host_res_secondbest`. But the start-position and traceback( is only computed with the best score. Therefore, only `host_res_secondbest->aln_score`, `host_res_secondbest->query_batch_end` and `host_res_secondbest->target_batch_end` are valid for second-best result.
 
 
 
@@ -225,8 +225,3 @@ N. Ahmed, J. Lévy, S. Ren, H. Mushtaq, K. Bertels and Z. Al-ars, __GASAL2: a GP
 
 ## Problems and suggestions
 For any issues and suugestions contact Jonathan Lévy (j.levy@student.tudelft.nl) or Nauman Ahmed (n.ahmed@tudelft.nl).
-
-
-
-
-

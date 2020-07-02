@@ -27,21 +27,20 @@ int main(int argc, char **argv) {
 
 	//gasal_set_device(GPU_SELECT);
 
-	Parameters *args;
-	args = new Parameters(argc, argv);
-	args->parse();
-	args->print();
+	Parameters args(argc, argv);
+	args.parse();
+	args.print();
 
-	int print_out = args->print_out;
-	int n_threads = args->n_threads;
+	int print_out = args.print_out;
+	int n_threads = args.n_threads;
 
 	//--------------copy substitution scores to GPU--------------------
 	gasal_subst_scores sub_scores;
 
-	sub_scores.match = args->sa;
-	sub_scores.mismatch = args->sb;
-	sub_scores.gap_open = args->gapo;
-	sub_scores.gap_extend = args->gape;
+	sub_scores.match = args.sa;
+	sub_scores.mismatch = args.sb;
+	sub_scores.gap_open = args.gapo;
+	sub_scores.gap_extend = args.gape;
 
 	gasal_copy_subst_scores(&sub_scores);
 
@@ -85,7 +84,7 @@ int main(int argc, char **argv) {
 	 * No protection is done, so any other number will only have its two first bytes counted as above.
 	 */
 
-	while (getline(args->query_batch_fasta, query_batch_line) && getline(args->target_batch_fasta, target_batch_line)) {
+	while (getline(args.query_batch_fasta, query_batch_line) && getline(args.target_batch_fasta, target_batch_line)) {
 
 		//load sequences from the files
 		char *q = NULL;
@@ -256,7 +255,6 @@ int main(int argc, char **argv) {
 
 	for(int z = 0; z < gpu_storage_vecs[omp_get_thread_num()].n; z++) {
 		gpu_batch_arr[z].gpu_storage = &(gpu_storage_vecs[omp_get_thread_num()].a[z]);
-
 	}
 
 	if (n_seqs > 0) {
@@ -331,7 +329,7 @@ int main(int argc, char **argv) {
 				//----------------------------------------------------------------------------------------------------
 				//-----------------calling the GASAL2 non-blocking alignment function---------------------------------
 
-				gasal_aln_async(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, args);
+				gasal_aln_async(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, &args);
 				gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns = 0;
 				//---------------------------------------------------------------------------------
 			}
@@ -354,15 +352,15 @@ int main(int argc, char **argv) {
 
 
 						/// WARNING : INEQUALITY ON ENUM: CAN BREAK IF ENUM ORDER IS CHANGED
-						if ((args->start_pos == WITH_START || args->start_pos == WITH_TB)
-							&& ((args->algo == SEMI_GLOBAL && (args->semiglobal_skipping_head != NONE || args->semiglobal_skipping_head != NONE))
-								|| args->algo > SEMI_GLOBAL))
+						if ((args.start_pos == WITH_START || args.start_pos == WITH_TB)
+							&& ((args.algo == SEMI_GLOBAL && (args.semiglobal_skipping_head != NONE || args.semiglobal_skipping_head != NONE))
+								|| args.algo > SEMI_GLOBAL))
 						{
 							std::cout << "\tquery_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_start[j];
 							std::cout << "\ttarget_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_start[j];
 						}
 
-						if (args->algo != GLOBAL)
+						if (args.algo != GLOBAL)
 						{
 							std::cout << "\tquery_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_end[j];
 							std::cout << "\ttarget_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_end[j] ;
@@ -370,14 +368,14 @@ int main(int argc, char **argv) {
 
 
 
-						if (args->secondBest)
+						if (args.secondBest)
 						{
 							std::cout << "\t2nd_score=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->aln_score[j] ;
 							std::cout << "\t2nd_query_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->query_batch_end[j];
 							std::cout << "\t2nd_target_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->target_batch_end[j] ;
 						}
 
-						if (args->start_pos == WITH_TB) {
+						if (args.start_pos == WITH_TB) {
 							std::cout << "\tCIGAR=";
 							int offset = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j];
 							int n_cigar_ops = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->n_cigar_ops[j];
@@ -453,6 +451,4 @@ int main(int argc, char **argv) {
 	}
 	std::cerr << std::endl << "Done" << std::endl;
 	fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.GetTime());
-	delete args; // closes the files
-	//free(args); // closes the files
 }
