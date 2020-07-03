@@ -5,6 +5,12 @@
 #include <unordered_map>
 #include <vector>
 
+/*
+a=['A','G','C','T']
+import random
+''.join(random.choices(a,k=8))
+*/
+
 #define CHECKCUDAERROR(error) \
     {\
       const auto err=(error); \
@@ -65,4 +71,29 @@ TEST_CASE("Packing"){
   }
 
   CHECK(unpacked_query==packed_result);
+}
+
+
+
+TEST_CASE("Simple complement"){
+  uint32_t packed = 0;
+  packed |= (('G'&0xF)<<28);
+  packed |= (('C'&0xF)<<24);
+  packed |= (('T'&0xF)<<20);
+  packed |= (('T'&0xF)<<16);
+  packed |= (('G'&0xF)<<12);
+  packed |= (('T'&0xF)<< 8);
+  packed |= (('A'&0xF)<< 4);
+  packed |= (('A'&0xF)<< 0);
+
+  const auto complement = packed_complement1(packed);
+
+  CHECK( ((complement>>28)&0xF) == ('C' & 0xF));
+  CHECK( ((complement>>24)&0xF) == ('G' & 0xF));
+  CHECK( ((complement>>20)&0xF) == ('A' & 0xF));
+  CHECK( ((complement>>16)&0xF) == ('A' & 0xF));
+  CHECK( ((complement>>12)&0xF) == ('C' & 0xF));
+  CHECK( ((complement>> 8)&0xF) == ('A' & 0xF));
+  CHECK( ((complement>> 4)&0xF) == ('T' & 0xF));
+  CHECK( ((complement>> 0)&0xF) == ('T' & 0xF));
 }

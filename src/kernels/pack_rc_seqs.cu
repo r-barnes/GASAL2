@@ -40,6 +40,26 @@ __global__ void pack_data(
 
 
 
+__host__ __device__ uint32_t packed_complement1(uint32_t packed_bases){
+  uint32_t comp_packed_bases = 0;
+  #pragma unroll 8
+  for(int k = 28; k >= 0; k = k - 4){ // complement 32-bits word... is pragma-unrolled.
+    auto nucleotide = (packed_bases>>k) & 0xF;
+    switch(nucleotide){
+      case A_PAK: nucleotide = T_PAK; break;
+      case C_PAK: nucleotide = G_PAK; break;
+      case T_PAK: nucleotide = A_PAK; break;
+      case G_PAK: nucleotide = C_PAK; break;
+      default: break;
+    }
+    comp_packed_bases |= (nucleotide << k);
+  }
+
+  return comp_packed_bases;
+}
+
+
+
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
 	uint32_t       *const packed_target_batch,
@@ -151,31 +171,10 @@ __global__ void	gasal_reversecomplement_kernel(
 			}
 		}
 
-		if (*(op+tid) & 0x02) // complement
-		{
-			for (uint32_t i = 0; i < *(batch_regs); i++) // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
-			{
-				uint32_t rpac = *(packed_batch + *(packed_batch_idx) + i); //load 8 packed bases from head
-				uint32_t nucleotide = 0;
-
-				#pragma unroll 8
-				for(int k = 28; k >= 0; k = k - 4)		// complement 32-bits word... is pragma-unrolled.
-				{
-					nucleotide = (rpac & (0x0F << k)) >> (k);
-					switch(nucleotide){
-						case A_PAK: nucleotide = T_PAK; break;
-						case C_PAK: nucleotide = G_PAK; break;
-						case T_PAK: nucleotide = A_PAK; break;
-						case G_PAK: nucleotide = C_PAK; break;
-						default: break;
-					}
-					rpac = (rpac & (0xFFFFFFFF - (0x0F << k))) | nucleotide << k;
-				}
-
-				//printf("KERNEL DEBUG: Word read : %x, after complement: %x\n", *(packed_batch + *(packed_batch_idx) + i), rpac);
-
-				*(packed_batch + *(packed_batch_idx) + i) = rpac;
-			}
-		}
-	}
+    if (*(op+tid) & 0x02){ // complement
+      for (uint32_t i = 0; i < *(batch_regs); i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
+        *(packed_batch + *(packed_batch_idx) + i) = packed_complement1(*(packed_batch + *(packed_batch_idx) + i)); //load 8 packed bases from head
+      }
+    }
+  }
 }

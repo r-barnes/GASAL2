@@ -8,6 +8,8 @@ __global__ void pack_data(
 	const uint64_t len
 );
 
+__host__ __device__ uint32_t packed_complement1(uint32_t packed_bases);
+
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
 	uint32_t       *const packed_target_batch,
