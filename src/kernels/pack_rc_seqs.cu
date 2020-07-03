@@ -214,8 +214,8 @@ __global__ void	gasal_reversecomplement_kernel(
 
 __global__ void	new_reversecomplement_kernel(
   uint32_t       *const packed_batch,
-  const uint32_t *const query_batch_lens,
-  const uint32_t *const query_batch_offsets,
+  const uint32_t *const batch_lengths,
+  const uint32_t *const batch_offsets,
   const uint8_t  *const op,
   const uint32_t        n_tasks
 ){
@@ -225,22 +225,20 @@ __global__ void	new_reversecomplement_kernel(
   // If there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
   if (op[tid] == 0) return;
 
-  const auto packed_batch_idx = query_batch_offsets[tid] >> 3;  //Starting index of the query_batch sequence
-  const auto read_len         = query_batch_lens[tid];          //Number of 32-bit words holding sequence of query_batch
-  const auto batch_regs       = (read_len >> 3) + (read_len&7 ? 1 : 0);
+  const auto packed_batch_idx = batch_offsets[tid]/8;  //Starting index of the query_batch sequence
+  const auto read_len         = batch_lengths[tid];    //Number of 32-bit words holding sequence of query_batch
+  const auto batch_regs       = (read_len/8) + (read_len&7 ? 1 : 0);
 
   //That's (query_batch_regs / 2) + 1 if it's odd, + 0 otherwise. Used for
   //reverse (we start a both ends, and finish at the center of the sequence).
-  const auto batch_regs_to_swap = (batch_regs >> 1) + (batch_regs & 1);
+  const auto batch_regs_to_swap = (batch_regs/2) + (batch_regs & 1);
 
   if (op[tid] & 0x01){ // reverse
     // deal with N's : read last word, find how many N's, store that number as offset, and pad with that many for the last
     uint8_t nbr_N = 0;
     for (int j = 0; j < 32; j = j + 4){
-      nbr_N += (((*(packed_batch + packed_batch_idx + batch_regs-1) & (0x0F << j)) >> j) == N_CODE);
+      nbr_N += (((packed_batch[packed_batch_idx + batch_regs-1] & (0x0F << j)) >> j) == N_CODE);
     }
-
-    //printf("KERNEL_DEBUG: nbr_N=%d\n", nbr_N);
 
     nbr_N = nbr_N << 2; // we operate on nibbles so we will need to do our shifts 4 bits by 4 bits, so 4*nbr_N
 
@@ -255,30 +253,30 @@ __global__ void	new_reversecomplement_kernel(
       You progress through both heads and tails that way, until you reach the center of the sequence.
       When you reach it, you actually don't write one of the words to avoid overwrite.
       */
-      const uint32_t rpac_1 = *(packed_batch + packed_batch_idx + i); //load 8 packed bases from head
-      const uint32_t rpac_2 = ((*(packed_batch + packed_batch_idx + batch_regs-2 - i)) << (32-nbr_N)) | ((*(packed_batch + packed_batch_idx + batch_regs-1 - i)) >> nbr_N);
+      const uint32_t rpac_1 = packed_batch[packed_batch_idx+i]; //load 8 packed bases from head
+      const uint32_t rpac_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] << (32-nbr_N)) | ((*(packed_batch + packed_batch_idx + batch_regs-1 - i)) >> nbr_N);
 
       const uint32_t reverse_rpac_1 = reverse_word(rpac_1);
       const uint32_t reverse_rpac_2 = reverse_word(rpac_2);
 
       // last swap operated manually, because of its irregular size (32 - 4*nbr_N bits, hence 8 - nbr_N nibbles)
 
-      const uint32_t to_queue_1 = (reverse_rpac_1 << nbr_N) | ((*(packed_batch + packed_batch_idx + batch_regs-1 - i)) & ((1<<nbr_N) - 1));
-      const uint32_t to_queue_2 = ((*(packed_batch + packed_batch_idx + batch_regs-2 - i)) & (0xFFFFFFFF - ((1<<nbr_N) - 1))) | (reverse_rpac_1 >> (32-nbr_N));
+      const uint32_t to_queue_1 = (reverse_rpac_1 << nbr_N) | (packed_batch[packed_batch_idx + batch_regs-1 - i] & ((1<<nbr_N) - 1));
+      const uint32_t to_queue_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] & (0xFFFFFFFF - ((1<<nbr_N) - 1))) | (reverse_rpac_1 >> (32-nbr_N));
 
       //printf("KERNEL DEBUG: rpac_1 Word before reverse: %x, after: %x, split into %x + %x \n", rpac_1, reverse_rpac_1, to_queue_2, to_queue_1 );
       //printf("KERNEL DEBUG: rpac_2 Word before reverse: %x, after: %x\n", rpac_2, reverse_rpac_2 );
 
-      *(packed_batch + packed_batch_idx + i) = reverse_rpac_2;
-      (*(packed_batch + packed_batch_idx + batch_regs-1 - i)) = to_queue_1;
+      packed_batch[packed_batch_idx + i] = reverse_rpac_2;
+      packed_batch[packed_batch_idx + batch_regs-1 - i] = to_queue_1;
       if (i!=batch_regs_to_swap-1)
-        (*(packed_batch + packed_batch_idx + batch_regs-2 - i)) = to_queue_2;
+        packed_batch[packed_batch_idx + batch_regs-2 - i] = to_queue_2;
     }
   }
 
   if (op[tid] & 0x02){ // complement
     for (uint32_t i = 0; i < batch_regs; i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
-      *(packed_batch + packed_batch_idx + i) = complement_word(*(packed_batch + packed_batch_idx + i)); //load 8 packed bases from head
+      packed_batch[packed_batch_idx + i] = complement_word(packed_batch[packed_batch_idx + i]); //load 8 packed bases from head
     }
   }
 }

@@ -25,8 +25,8 @@ __global__ void	gasal_reversecomplement_kernel(
 
 __global__ void	new_reversecomplement_kernel(
   uint32_t       *const packed_batch,
-  const uint32_t *const query_batch_lens,
-  const uint32_t *const query_batch_offsets,
+  const uint32_t *const batch_lengths,
+  const uint32_t *const batch_offsets,
   const uint8_t  *const op,
   const uint32_t        n_tasks
 );
