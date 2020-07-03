@@ -75,7 +75,7 @@ TEST_CASE("Packing"){
 
 
 
-TEST_CASE("Simple complement"){
+TEST_CASE("Complement word"){
   uint32_t packed = 0;
   packed |= (('G'&0xF)<<28);
   packed |= (('C'&0xF)<<24);
@@ -86,7 +86,7 @@ TEST_CASE("Simple complement"){
   packed |= (('A'&0xF)<< 4);
   packed |= (('A'&0xF)<< 0);
 
-  const auto complement = packed_complement1(packed);
+  const auto complement = complement_word(packed);
 
   CHECK( ((complement>>28)&0xF) == ('C' & 0xF));
   CHECK( ((complement>>24)&0xF) == ('G' & 0xF));
@@ -96,4 +96,29 @@ TEST_CASE("Simple complement"){
   CHECK( ((complement>> 8)&0xF) == ('A' & 0xF));
   CHECK( ((complement>> 4)&0xF) == ('T' & 0xF));
   CHECK( ((complement>> 0)&0xF) == ('T' & 0xF));
+}
+
+
+
+TEST_CASE("Reverse word"){
+  uint32_t packed = 0;
+  packed |= (('A'&0xF)<<28);
+  packed |= (('B'&0xF)<<24);
+  packed |= (('C'&0xF)<<20);
+  packed |= (('D'&0xF)<<16);
+  packed |= (('E'&0xF)<<12);
+  packed |= (('F'&0xF)<< 8);
+  packed |= (('G'&0xF)<< 4);
+  packed |= (('H'&0xF)<< 0);
+
+  const auto reversed = reverse_word(packed);
+
+  CHECK( ((reversed>>28)&0xF) == ('H' & 0xF));
+  CHECK( ((reversed>>24)&0xF) == ('G' & 0xF));
+  CHECK( ((reversed>>20)&0xF) == ('F' & 0xF));
+  CHECK( ((reversed>>16)&0xF) == ('E' & 0xF));
+  CHECK( ((reversed>>12)&0xF) == ('D' & 0xF));
+  CHECK( ((reversed>> 8)&0xF) == ('C' & 0xF));
+  CHECK( ((reversed>> 4)&0xF) == ('B' & 0xF));
+  CHECK( ((reversed>> 0)&0xF) == ('A' & 0xF));
 }

@@ -250,15 +250,31 @@ void gasal_aln_async(
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage->query_op, gpu_storage->host_query_op, actual_n_alns * sizeof(uint8_t), cudaMemcpyHostToDevice,  gpu_storage->str));
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage->target_op, gpu_storage->host_target_op, actual_n_alns * sizeof(uint8_t), cudaMemcpyHostToDevice,  gpu_storage->str));
 		//--------------------------------------launch reverse-complement kernel------------------------------------------------------
-		gasal_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(gpu_storage->packed_query_batch, gpu_storage->packed_target_batch, gpu_storage->query_batch_lens,
-			gpu_storage->target_batch_lens, gpu_storage->query_batch_offsets, gpu_storage->target_batch_offsets, gpu_storage->query_op, gpu_storage->target_op, actual_n_alns);
-		cudaError_t reversecomplement_kernel_err = cudaGetLastError();
-		if ( cudaSuccess != reversecomplement_kernel_err )
-		{
-			 fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(reversecomplement_kernel_err), reversecomplement_kernel_err,  __LINE__, __FILE__);
+		new_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
+			gpu_storage->packed_query_batch,
+			gpu_storage->query_batch_lens,
+			gpu_storage->query_batch_offsets,
+			gpu_storage->query_op,
+			actual_n_alns
+		);
+		const cudaError_t reversecomplement_kernel_err1 = cudaGetLastError();
+		if ( cudaSuccess != reversecomplement_kernel_err1 ){
+			 fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(reversecomplement_kernel_err1), reversecomplement_kernel_err1,  __LINE__, __FILE__);
 			 exit(EXIT_FAILURE);
 		}
 
+		new_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
+			gpu_storage->packed_target_batch,
+			gpu_storage->target_batch_lens,
+			gpu_storage->target_batch_offsets,
+			gpu_storage->target_op,
+			actual_n_alns
+		);
+		const cudaError_t reversecomplement_kernel_err2 = cudaGetLastError();
+		if ( cudaSuccess != reversecomplement_kernel_err2 ){
+			 fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(reversecomplement_kernel_err2), reversecomplement_kernel_err2,  __LINE__, __FILE__);
+			 exit(EXIT_FAILURE);
+		}
 	}
 
     //--------------------------------------launch alignment kernels--------------------------------------------------------------

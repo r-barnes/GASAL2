@@ -8,7 +8,8 @@ __global__ void pack_data(
 	const uint64_t len
 );
 
-__host__ __device__ uint32_t packed_complement1(uint32_t packed_bases);
+__host__ __device__ uint32_t complement_word(const uint32_t packed_bases);
+__host__ __device__ uint32_t reverse_word(uint32_t word);
 
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
@@ -20,4 +21,12 @@ __global__ void	gasal_reversecomplement_kernel(
 	const uint8_t  *const query_op,
 	const uint8_t  *const target_op,
 	const uint32_t        n_tasks
+);
+
+__global__ void	new_reversecomplement_kernel(
+  uint32_t       *const packed_batch,
+  const uint32_t *const query_batch_lens,
+  const uint32_t *const query_batch_offsets,
+  const uint8_t  *const op,
+  const uint32_t        n_tasks
 );
