@@ -5,7 +5,7 @@
 __global__ void pack_data(
 	const uint32_t *const unpacked,
 	uint32_t *const packed,
-	const uint64_t len
+	const uint64_t N
 );
 
 __host__ __device__ uint32_t complement_word(const uint32_t packed_bases);

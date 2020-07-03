@@ -228,7 +228,10 @@ __global__ void	gasal_reversecomplement_kernel(
 
 
 
-
+// * - '>' translates to 0b00 (0) = Forward, natural
+// * - '<' translates to 0b01 (1) = Reverse, natural
+// * - '/' translates to 0b10 (2) = Forward, complemented
+// * - '+' translates to 0b11 (3) = Reverse, complemented
 __global__ void	new_reversecomplement_kernel(
   uint32_t       *const packed_batch,
   const uint32_t *const batch_lengths,
@@ -236,11 +239,12 @@ __global__ void	new_reversecomplement_kernel(
   const uint8_t  *const op,
   const uint32_t        n_tasks
 ){
-  const auto tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (tid >= n_tasks) return;
+
   // If there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
-  if (op[tid] == 0) return;
+  if (op[tid] == '>') return;
 
   const auto packed_batch_idx = batch_offsets[tid]/8;  //Starting index of the query_batch sequence
   const auto read_len         = batch_lengths[tid];    //Number of 32-bit words holding sequence of query_batch
@@ -250,7 +254,7 @@ __global__ void	new_reversecomplement_kernel(
   //reverse (we start a both ends, and finish at the center of the sequence).
   const auto batch_regs_to_swap = (batch_regs/2) + (batch_regs & 1);
 
-  if (op[tid] & 0x01){ // reverse
+  if (op[tid]=='<' || op[tid]=='+'){ // reverse
     // Deal with N's: read last word, find how many N's, store that number as offset,
     // and pad with that many for the last. Since we operate on nibbles, we multiply
     // by four.
@@ -289,7 +293,7 @@ __global__ void	new_reversecomplement_kernel(
   }
 
   //TODO: Turn into a grid strided loop
-  if (op[tid] & 0x02){ // Complement
+  if (op[tid]=='/' || op[tid]=='+'){ // Complement
     for (uint32_t i = 0; i < batch_regs; i++){ // Complement all words
       packed_batch[packed_batch_idx + i] = complement_word(packed_batch[packed_batch_idx + i]); //load 8 packed bases from head
     }
