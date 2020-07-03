@@ -1,6 +1,8 @@
 #include "doctest.h"
 #include <kernels/pack_rc_seqs.cuh>
 
+#include <algorithm>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -11,6 +13,9 @@ import random
 ''.join(random.choices(a,k=8))
 */
 
+const std::unordered_map<int,char> trans{{1,'A'}, {3, 'C'}, {7, 'G'}, {4, 'T'}, {14, 'N'}, {0, '-'}};
+const std::string bases = "GCTAN";
+
 #define CHECKCUDAERROR(error) \
     {\
       const auto err=(error); \
@@ -19,6 +24,32 @@ import random
       }\
       REQUIRE(err==cudaSuccess); \
     }
+
+
+
+std::string Unloadword(uint32_t word){
+  std::string unpacked;
+  unpacked += trans.at((word>>28)&0xF);
+  unpacked += trans.at((word>>24)&0xF);
+  unpacked += trans.at((word>>20)&0xF);
+  unpacked += trans.at((word>>16)&0xF);
+  unpacked += trans.at((word>>12)&0xF);
+  unpacked += trans.at((word>> 8)&0xF);
+  unpacked += trans.at((word>> 4)&0xF);
+  unpacked += trans.at((word>> 0)&0xF);
+  return unpacked;
+}
+
+
+
+std::string RandomWord(){
+  std::string input;
+  for(int i=0;i<8;i++)
+    input += bases.at(rand()%bases.size());
+  return input;
+}
+
+
 
 TEST_CASE("Packing"){
   const std::string unpacked_query_seed = "GAACTGCCGAGAAGTCACAGAAGGGACTGTGG";
@@ -56,26 +87,32 @@ TEST_CASE("Packing"){
 
   CHECKCUDAERROR(cudaMemcpy(packed_query.data(),  packed_query_dev,  packed_size*sizeof(uint32_t), cudaMemcpyDeviceToHost));
 
-  const std::unordered_map<int,char> trans{{1,'A'}, {3, 'C'}, {7, 'G'}, {4, 'T'}, {0, '-'}};
-
   std::string packed_result;
-  for(const auto &x: packed_query){
-    packed_result.push_back(trans.at((x>>28)&0xF));
-    packed_result.push_back(trans.at((x>>24)&0xF));
-    packed_result.push_back(trans.at((x>>20)&0xF));
-    packed_result.push_back(trans.at((x>>16)&0xF));
-    packed_result.push_back(trans.at((x>>12)&0xF));
-    packed_result.push_back(trans.at((x>> 8)&0xF));
-    packed_result.push_back(trans.at((x>> 4)&0xF));
-    packed_result.push_back(trans.at((x>> 0)&0xF));
-  }
+  for(const auto &x: packed_query)
+    packed_result += Unloadword(x);
 
   CHECK(unpacked_query==packed_result);
 }
 
 
 
-TEST_CASE("Complement word"){
+uint32_t LoadWord(const std::string &nibbles){
+  REQUIRE(nibbles.size()==8);
+  uint32_t packed = 0;
+  packed |= ((nibbles[0]&0xF)<<28);
+  packed |= ((nibbles[1]&0xF)<<24);
+  packed |= ((nibbles[2]&0xF)<<20);
+  packed |= ((nibbles[3]&0xF)<<16);
+  packed |= ((nibbles[4]&0xF)<<12);
+  packed |= ((nibbles[5]&0xF)<< 8);
+  packed |= ((nibbles[6]&0xF)<< 4);
+  packed |= ((nibbles[7]&0xF)<< 0);
+  return packed;
+}
+
+
+
+TEST_CASE("Complement word single"){
   uint32_t packed = 0;
   packed |= (('G'&0xF)<<28);
   packed |= (('C'&0xF)<<24);
@@ -83,7 +120,7 @@ TEST_CASE("Complement word"){
   packed |= (('T'&0xF)<<16);
   packed |= (('G'&0xF)<<12);
   packed |= (('T'&0xF)<< 8);
-  packed |= (('A'&0xF)<< 4);
+  packed |= (('N'&0xF)<< 4);
   packed |= (('A'&0xF)<< 0);
 
   const auto complement = complement_word(packed);
@@ -94,31 +131,49 @@ TEST_CASE("Complement word"){
   CHECK( ((complement>>16)&0xF) == ('A' & 0xF));
   CHECK( ((complement>>12)&0xF) == ('C' & 0xF));
   CHECK( ((complement>> 8)&0xF) == ('A' & 0xF));
-  CHECK( ((complement>> 4)&0xF) == ('T' & 0xF));
+  CHECK( ((complement>> 4)&0xF) == ('N' & 0xF));
   CHECK( ((complement>> 0)&0xF) == ('T' & 0xF));
 }
 
 
 
+TEST_CASE("Complement word randomized"){
+  //Complementing the complement should give us the original
+  for(int i=0;i<100;i++){
+    const std::string input = RandomWord();
+    const auto complemented = Unloadword(complement_word(complement_word(LoadWord(input))));
+    CHECK(input==complemented);
+  }
+}
+
+
+
 TEST_CASE("Reverse word"){
-  uint32_t packed = 0;
-  packed |= (('A'&0xF)<<28);
-  packed |= (('B'&0xF)<<24);
-  packed |= (('C'&0xF)<<20);
-  packed |= (('D'&0xF)<<16);
-  packed |= (('E'&0xF)<<12);
-  packed |= (('F'&0xF)<< 8);
-  packed |= (('G'&0xF)<< 4);
-  packed |= (('H'&0xF)<< 0);
+  //Test that reversing inside the system matches a known reverse
+  for(int i=0;i<100;i++){
+    const std::string input = RandomWord();
+    auto reversed = Unloadword(reverse_word(LoadWord(input)));
+    std::reverse(reversed.begin(), reversed.end());
+    CHECK(input==reversed);
+  }
+}
 
-  const auto reversed = reverse_word(packed);
 
-  CHECK( ((reversed>>28)&0xF) == ('H' & 0xF));
-  CHECK( ((reversed>>24)&0xF) == ('G' & 0xF));
-  CHECK( ((reversed>>20)&0xF) == ('F' & 0xF));
-  CHECK( ((reversed>>16)&0xF) == ('E' & 0xF));
-  CHECK( ((reversed>>12)&0xF) == ('D' & 0xF));
-  CHECK( ((reversed>> 8)&0xF) == ('C' & 0xF));
-  CHECK( ((reversed>> 4)&0xF) == ('B' & 0xF));
-  CHECK( ((reversed>> 0)&0xF) == ('A' & 0xF));
+
+TEST_CASE("Trailing Ns"){
+  for(int i=0;i<100;i++){
+    std::string input = RandomWord();
+
+    int trailing = 0;
+    for(int i=7;i>=0;i--){
+      if(input.at(i)=='N')
+        trailing++;
+      else
+        break;
+    }
+
+    const auto cuda_trailing = count_word_trailing_n(LoadWord(input));
+
+    CHECK_MESSAGE(cuda_trailing==trailing, input);
+  }
 }

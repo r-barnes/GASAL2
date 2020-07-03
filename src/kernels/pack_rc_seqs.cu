@@ -76,6 +76,20 @@ __host__ __device__ uint32_t reverse_word(uint32_t word){
 
 
 
+__host__ __device__ uint8_t count_word_trailing_n(uint32_t word){
+  uint8_t number_of_n = 0;  //Number of Ns is initially 0
+  for(int j=0;j<8;j++){     //Consider each nibble of the word
+    if((word&0xF)==N_VALUE) //If this nibble is an N
+      number_of_n++;        //count it
+    else                    //otherwise
+      break;                //stop counting, we've found all the trailing Ns
+    word >>= 4;             //Shift one nibble to the right so we consider the next
+  }
+  return number_of_n;       //This many Ns
+}
+
+
+
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
 	uint32_t       *const packed_target_batch,
@@ -234,16 +248,13 @@ __global__ void	new_reversecomplement_kernel(
   const auto batch_regs_to_swap = (batch_regs/2) + (batch_regs & 1);
 
   if (op[tid] & 0x01){ // reverse
-    // deal with N's : read last word, find how many N's, store that number as offset, and pad with that many for the last
-    uint8_t nbr_N = 0;
-    for (int j = 0; j < 32; j = j + 4){
-      nbr_N += (((packed_batch[packed_batch_idx + batch_regs-1] & (0x0F << j)) >> j) == N_CODE);
-    }
-
-    nbr_N = nbr_N << 2; // we operate on nibbles so we will need to do our shifts 4 bits by 4 bits, so 4*nbr_N
+    // Deal with N's: read last word, find how many N's, store that number as offset,
+    // and pad with that many for the last. Since we operate on nibbles, we multiply
+    // by four.
+    const uint8_t nbr_N = 4*count_word_trailing_n(packed_batch[packed_batch_idx + batch_regs-1]);
 
     for (uint32_t i = 0; i < batch_regs_to_swap; i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
-      /* This  is the current operation flow:\
+      /* This is the current operation flow:\
         - Read the first 32-bits word on HEAD
         - Combine the reads of 2 last 32-bits words on tail to create the 32-bits word WITHOUT N's
         - Swap them
@@ -254,7 +265,7 @@ __global__ void	new_reversecomplement_kernel(
       When you reach it, you actually don't write one of the words to avoid overwrite.
       */
       const uint32_t rpac_1 = packed_batch[packed_batch_idx+i]; //load 8 packed bases from head
-      const uint32_t rpac_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] << (32-nbr_N)) | ((*(packed_batch + packed_batch_idx + batch_regs-1 - i)) >> nbr_N);
+      const uint32_t rpac_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] << (32-nbr_N)) | (packed_batch[packed_batch_idx + batch_regs-1 - i] >> nbr_N);
 
       const uint32_t reverse_rpac_1 = reverse_word(rpac_1);
       const uint32_t reverse_rpac_2 = reverse_word(rpac_2);
@@ -274,8 +285,9 @@ __global__ void	new_reversecomplement_kernel(
     }
   }
 
-  if (op[tid] & 0x02){ // complement
-    for (uint32_t i = 0; i < batch_regs; i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
+  //TODO: Turn into a grid strided loop
+  if (op[tid] & 0x02){ // Complement
+    for (uint32_t i = 0; i < batch_regs; i++){ // Complement all words
       packed_batch[packed_batch_idx + i] = complement_word(packed_batch[packed_batch_idx + i]); //load 8 packed bases from head
     }
   }

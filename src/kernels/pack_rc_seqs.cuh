@@ -10,6 +10,7 @@ __global__ void pack_data(
 
 __host__ __device__ uint32_t complement_word(const uint32_t packed_bases);
 __host__ __device__ uint32_t reverse_word(uint32_t word);
+__host__ __device__ uint8_t count_word_trailing_n(uint32_t word);
 
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
