@@ -129,6 +129,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, c
 	}
 
 
+	//Pad the data with N's
 	if (cur_page->page_size - cur_page->data_size >= size + nbr_N)
 	{
 		// fprintf(stderr, "FILL: "); gasal_host_batch_print(cur_page);

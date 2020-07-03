@@ -1,5 +1,6 @@
 #include <gasal2/gasal_kernels.h>
 
+#include <cassert>
 #include <cstdint>
 
 //TODO: This is a really scary way of defining the numbers since we're only
@@ -17,6 +18,8 @@ __global__ void pack_data(
 	uint32_t *const packed,
 	const uint64_t N
 ){
+  assert(N%8==0);
+
   const auto thread_id = blockIdx.x * blockDim.x + threadIdx.x;
   const auto stride    = gridDim.x * blockDim.x;
 
