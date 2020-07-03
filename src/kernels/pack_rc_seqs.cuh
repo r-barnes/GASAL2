@@ -8,4 +8,14 @@ __global__ void pack_data(
 	const uint64_t len
 );
 
-__global__ void	gasal_reversecomplement_kernel(uint32_t *packed_query_batch,uint32_t *packed_target_batch, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, uint8_t *query_op, uint8_t *target_op, uint32_t  n_tasks);
+__global__ void	gasal_reversecomplement_kernel(
+	uint32_t       *const packed_query_batch,
+	uint32_t       *const packed_target_batch,
+	const uint32_t *const query_batch_lens,
+	const uint32_t *const target_batch_lens,
+	const uint32_t *const query_batch_offsets,
+	const uint32_t *const target_batch_offsets,
+	const uint8_t  *const query_op,
+	const uint8_t  *const target_op,
+	const uint32_t        n_tasks
+);

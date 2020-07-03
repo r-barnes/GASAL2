@@ -91,3 +91,4 @@ add_executable(unittests
 target_link_libraries(unittests PRIVATE gasal2)
 
 configure_file(unittests/test.fasta ${CMAKE_BINARY_DIR}/test.fasta COPYONLY)
+configure_file(unittests/test_target.fasta ${CMAKE_BINARY_DIR}/test_target.fasta COPYONLY)

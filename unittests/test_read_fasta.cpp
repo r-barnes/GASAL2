@@ -7,6 +7,7 @@ TEST_CASE("No fasta file"){
   CHECK_THROWS_AS(ReadFasta("not-a-file"), std::runtime_error);
 }
 
+//TODO: Test for modifiers reading correctly
 TEST_CASE("Read Fasta"){
   FastaInput fasta;
   CHECK_NOTHROW(fasta=ReadFasta("test.fasta"));
