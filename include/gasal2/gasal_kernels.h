@@ -70,3 +70,4 @@ maxHH = (maxHH < curr) ? curr : maxHH;
 #include "kernels/banded.cuh"
 #include "kernels/ksw_kernel_template.cuh"
 #include "kernels/get_tb.cuh"
+#include "kernels/pack_rc_seqs.cuh"

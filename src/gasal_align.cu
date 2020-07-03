@@ -5,8 +5,6 @@
 #include <gasal2/gasal_kernels.h>
 #include <gasal2/host_batch.h>
 
-
-
 inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type algo, comp_start start, gasal_gpu_storage_t *gpu_storage, int32_t actual_n_alns, int32_t k_band, data_source semiglobal_skipping_head, data_source semiglobal_skipping_tail, Bool secondBest)
 {
 	switch(algo)
@@ -193,22 +191,27 @@ void gasal_aln_async(
 	const int query_batch_tasks_per_thread  = (int)ceil((double)actual_query_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
 	const int target_batch_tasks_per_thread = (int)ceil((double)actual_target_batch_bytes/(8*BLOCKDIM*N_BLOCKS));
 
-	//-------------------------------------------launch packing kernel
-
-	if (!(params->isPacked)){
-		gasal_pack_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
-			(uint32_t*)(gpu_storage->unpacked_query_batch),
-			(uint32_t*)(gpu_storage->unpacked_target_batch),
+	//Launch packing kernel
+	if(!params->isPacked){
+		pack_data<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
+			(const uint32_t*)gpu_storage->unpacked_query_batch,
 			gpu_storage->packed_query_batch,
+			actual_query_batch_bytes/4
+		);
+		const auto pack_query_err = cudaGetLastError();
+		if(pack_query_err!=cudaSuccess){
+			fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_query_err), pack_query_err,  __LINE__, __FILE__);
+		  exit(EXIT_FAILURE);
+		}
+
+		pack_data<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage->str>>>(
+			(const uint32_t*)gpu_storage->unpacked_target_batch,
 			gpu_storage->packed_target_batch,
-			query_batch_tasks_per_thread,
-			target_batch_tasks_per_thread,
-			actual_query_batch_bytes/4,
 			actual_target_batch_bytes/4
-	  );
-		const auto pack_kernel_err = cudaGetLastError();
-		if(pack_kernel_err != cudaSuccess){
-	  	fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_kernel_err), pack_kernel_err,  __LINE__, __FILE__);
+		);
+		const auto pack_target_err = cudaGetLastError();
+		if(pack_target_err!=cudaSuccess){
+			fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(pack_target_err), pack_target_err,  __LINE__, __FILE__);
 		  exit(EXIT_FAILURE);
 		}
 	}

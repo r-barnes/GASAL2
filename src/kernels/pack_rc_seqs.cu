@@ -40,56 +40,6 @@ __global__ void pack_data(
 
 
 
-__global__ void gasal_pack_kernel(
-	uint32_t* unpacked_query_batch,
-	uint32_t* unpacked_target_batch,
-	uint32_t *packed_query_batch,
-	uint32_t* packed_target_batch,
-	int query_batch_tasks_per_thread,
-	int target_batch_tasks_per_thread,
-	uint32_t total_query_batch_regs,
-	uint32_t total_target_batch_regs
-){
-	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-	const uint32_t n_threads = gridDim.x * blockDim.x;
-
-	for (uint32_t i = 0; i < query_batch_tasks_per_thread &&  (((i*n_threads)<<1) + (tid<<1) < total_query_batch_regs); ++i) {
-		uint32_t *query_addr = &(unpacked_query_batch[(i*n_threads)<<1]);
-		uint32_t reg1 = query_addr[(tid << 1)]; //load 4 bases of the query sequence from global memory
-		uint32_t reg2 = query_addr[(tid << 1) + 1]; //load  another 4 bases
-		uint32_t packed_reg = 0;
-		packed_reg |= (reg1 & 15) << 28;        // ---
-		packed_reg |= ((reg1 >> 8) & 15) << 24; //    |
-		packed_reg |= ((reg1 >> 16) & 15) << 20;//    |
-		packed_reg |= ((reg1 >> 24) & 15) << 16;//    |
-		packed_reg |= (reg2 & 15) << 12;        //     > pack sequence
-		packed_reg |= ((reg2 >> 8) & 15) << 8;  //    |
-		packed_reg |= ((reg2 >> 16) & 15) << 4; //    |
-		packed_reg |= ((reg2 >> 24) & 15);      //----
-		uint32_t *packed_query_addr = &(packed_query_batch[i*n_threads]);
-		packed_query_addr[tid] = packed_reg; //write 8 bases of packed query sequence to global memory
-	}
-
-	for (int32_t i = 0; i < target_batch_tasks_per_thread &&  (((i*n_threads)<<1) + (tid<<1)) < total_target_batch_regs; ++i) {
-		uint32_t *target_addr = &(unpacked_target_batch[(i * n_threads)<<1]);
-		uint32_t reg1 = target_addr[(tid << 1)]; //load 4 bases of the target sequence from global memory
-		uint32_t reg2 = target_addr[(tid << 1) + 1]; //load  another 4 bases
-		uint32_t packed_reg = 0;
-		packed_reg |= (reg1 & 15) << 28;        // ---
-		packed_reg |= ((reg1 >> 8) & 15) << 24; //    |
-		packed_reg |= ((reg1 >> 16) & 15) << 20;//    |
-		packed_reg |= ((reg1 >> 24) & 15) << 16;//    |
-		packed_reg |= (reg2 & 15) << 12;        //     > pack sequence
-		packed_reg |= ((reg2 >> 8) & 15) << 8;  //    |
-		packed_reg |= ((reg2 >> 16) & 15) << 4; //    |
-		packed_reg |= ((reg2 >> 24) & 15);      //----
-		uint32_t *packed_target_addr = &(packed_target_batch[i * n_threads]);
-		packed_target_addr[tid] = packed_reg; //write 8 bases of packed target sequence to global memory
-	}
-
-}
-
-
 __global__ void	gasal_reversecomplement_kernel(
   uint32_t *packed_query_batch,
   uint32_t *packed_target_batch,
