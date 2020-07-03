@@ -4,8 +4,8 @@
 #include <iostream>
 #include <math.h>
 #include <omp.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <vector>
 #include <gasal2/Timer.h>
 
@@ -153,9 +153,9 @@ int main(int argc, char **argv) {
     std::cerr << "Number of gpu_storage_vecs in a gpu_batch : " << omp_get_thread_num()+1 << std::endl;
   #endif
 
-  gpu_batch gpu_batch_arr[gpu_storage_vecs[omp_get_thread_num()].n];
+  std::vector<gpu_batch> gpu_batch_arr(gpu_storage_vecs[omp_get_thread_num()].n);
 
-  for(int z = 0; z < gpu_storage_vecs[omp_get_thread_num()].n; z++) {
+  for(size_t z = 0; z < gpu_batch_arr.size(); z++) {
     gpu_batch_arr[z].gpu_storage = &(gpu_storage_vecs[omp_get_thread_num()].a[z]);
   }
 
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
 
           if(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns > gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->host_max_n_alns)
           {
-            gasal_host_alns_resize(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->host_max_n_alns * 2, args);
+            gasal_host_alns_resize(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->host_max_n_alns * 2, args);
           }
 
           (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j] = query_batch_idx;
@@ -193,13 +193,13 @@ int main(int argc, char **argv) {
             The way the host memory is filled changes the current _idx (it's increased by size, and by the padding). That's why it's returned by the function.
           */
 
-          query_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+          query_batch_idx = gasal_host_batch_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
                   query_batch_idx,
                   input_data.first.sequences.at(i).c_str(),
                   input_data.first.sequences.at(i).size(),
                   QUERY);
 
-          target_batch_idx = gasal_host_batch_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+          target_batch_idx = gasal_host_batch_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
                   target_batch_idx,
                   input_data.second.sequences.at(i).c_str(),
                   input_data.second.sequences.at(i).size(),
@@ -217,8 +217,8 @@ int main(int argc, char **argv) {
         #endif
 
         // Here, we fill the operations arrays for the current batch to be processed by the stream
-        gasal_op_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_seq_mod + seqs_done - j, j, QUERY);
-        gasal_op_fill(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, target_seq_mod + seqs_done - j, j, TARGET);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_seq_mod + seqs_done - j, j, QUERY);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, target_seq_mod + seqs_done - j, j, TARGET);
 
 
         gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch = j;
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
         //----------------------------------------------------------------------------------------------------
         //-----------------calling the GASAL2 non-blocking alignment function---------------------------------
 
-        gasal_aln_async(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, &args);
+        gasal_aln_async(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, args);
         gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns = 0;
         //---------------------------------------------------------------------------------
       }
@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
       gpu_batch_arr_idx = 0;
       while (gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].n) {//loop through all the streams and print the results
                                           //of the finished streams.
-        if (gasal_is_aln_async_done(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage) == 0) {
+        if (gasal_is_aln_async_done(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage) == 0) {
           int j = 0;
           if(args.print_out) {
           #pragma omp critical

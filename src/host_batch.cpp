@@ -44,17 +44,16 @@ host_batch_t *gasal_host_batch_getlast(host_batch_t *arg)
 
 }
 
-void gasal_host_batch_reset(gasal_gpu_storage_t *gpu_storage)
-{
+void gasal_host_batch_reset(gasal_gpu_storage_t &gpu_storage){
 	// reset all batch idx and data occupation
-	host_batch_t *cur_page = NULL;
+	host_batch_t *cur_page = nullptr;
 	for(int i = 0; i < 2; i++) {
 		switch(i) {
 			case 0:
-				cur_page = (gpu_storage->extensible_host_unpacked_query_batch);
+				cur_page = gpu_storage.extensible_host_unpacked_query_batch;
 			break;
 			case 1:
-				cur_page = (gpu_storage->extensible_host_unpacked_target_batch);
+				cur_page = gpu_storage.extensible_host_unpacked_target_batch;
 			break;
 			default:
 			break;
@@ -73,8 +72,7 @@ void gasal_host_batch_reset(gasal_gpu_storage_t *gpu_storage)
 
 
 // TODO: make a template... now that you started to go the C++/template way, just stick to it.
-uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char* data, uint32_t size, data_source SRC)
-{
+uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char* data, uint32_t size, data_source SRC){
 	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 
@@ -83,12 +81,12 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 
 	switch(SRC) {
 		case QUERY:
-			cur_page = (gpu_storage->extensible_host_unpacked_query_batch);
-			p_batch_bytes = &(gpu_storage->host_max_query_batch_bytes);
+			cur_page = gpu_storage.extensible_host_unpacked_query_batch;
+			p_batch_bytes = &gpu_storage.host_max_query_batch_bytes;
 		break;
 		case TARGET:
-			cur_page = (gpu_storage->extensible_host_unpacked_target_batch);
-			p_batch_bytes = &(gpu_storage->host_max_target_batch_bytes);
+			cur_page = gpu_storage.extensible_host_unpacked_target_batch;
+			p_batch_bytes = &gpu_storage.host_max_target_batch_bytes;
 		break;
 		default:
 		break;
@@ -150,29 +148,25 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 }
 
 
-uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char base, data_source SRC )
-{
-    return gasal_host_batch_add(gpu_storage, idx, &base, 1, SRC );
+uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char base, data_source SRC){
+  return gasal_host_batch_add(gpu_storage, idx, &base, 1, SRC );
 }
 
 
-uint32_t gasal_host_batch_add(gasal_gpu_storage_t *gpu_storage, uint32_t idx, const char *data, uint32_t size, data_source SRC )
-{
-
+uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char *data, uint32_t size, data_source SRC){
 	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 	host_batch_t *cur_page = NULL;
 	uint32_t *p_batch_bytes = NULL;
 
-
 	switch(SRC) {
 		case QUERY:
-			cur_page = (gpu_storage->extensible_host_unpacked_query_batch);
-			p_batch_bytes = &(gpu_storage->host_max_query_batch_bytes);
+			cur_page = gpu_storage.extensible_host_unpacked_query_batch;
+			p_batch_bytes = &gpu_storage.host_max_query_batch_bytes;
 		break;
 		case TARGET:
-			cur_page = (gpu_storage->extensible_host_unpacked_target_batch);
-			p_batch_bytes = &(gpu_storage->host_max_target_batch_bytes);
+			cur_page = gpu_storage.extensible_host_unpacked_target_batch;
+			p_batch_bytes = &gpu_storage.host_max_target_batch_bytes;
 		break;
 		default:
 		break;

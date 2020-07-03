@@ -78,7 +78,7 @@ void gasal_destroy_gpu_storage_v(gasal_gpu_storage_v *gpu_storage_vec);
 The streams in the vector are initialized by calling:
 
 ```C
-void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns,  Parameters *params);
+void gasal_init_streams(gasal_gpu_storage_v *gpu_storage_vec,  int max_query_len, int max_target_len, int max_n_alns, const Parameters &params);
 ```
 
 In GASAL2, the sequences to be aligned are conatined in two batches. A sequence in query_batch is aligned to sequence in target_batch. A *batch* is a concatenation of sequences. *The length of a sequence must be a multiple of 8*. Hence, if a sequence is not a multiple of 8, `N's` are added at the end of sequence. We call these redundant bases as *Pad bases*. Note that the pad bases are always "N's" irrespective of whether `N_PENALTY` is defined or not. The `gasal_init_streams()` function alloctes the memory required by a stream. With the help of *max_batch_bytes*, the user specifies the expected maxumum size(in bytes) of sequences in the two batches. *host_max_batch_bytes* are pre-allocated on the CPU. Smilarly, *gpu_max_batch_bytes* are pre-allocated on the GPU. *max_n_alns* is the expected maximum number of sequences in a batch. If the actual required GPU memory is more than the pre-allocated memory, GASAL2 automatically allocates more memory.
@@ -86,7 +86,7 @@ In GASAL2, the sequences to be aligned are conatined in two batches. A sequence 
 Most GASAL2 functions operate with a Parameters object. This object holds all the informations about the alignment options selected. In particular, the alignment type, the default values when opening or extending gaps, etc. The Parameters object is filled like this:
 
 ```C
-Parameters *args;
+Parameters args;
 args = new Parameters(0, NULL);
 
 args->algo = <LOCAL|GLOBAL|SEMI_GLOBAL>;
@@ -102,7 +102,7 @@ args->secondBest = <TRUE|FALSE>; //whether to compute the second best score in l
 To free up the allocated memory the following function is used:
 
 ```C
-void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, Parameters *params);
+void gasal_destroy_streams(gasal_gpu_storage_v *gpu_storage_vec, const Parameters &params);
 ```
 
 The `gasal_init_streams()` and `gasal_destroy_streams()` internally use `cudaMalloc()`, `cudaMallocHost()`, `cudaFree()` and `cudaFreeHost()` functions. These CUDA API functions are time expensive. Therefore, `gasal_init_streams()` and `gasal_destroy_streams()` should be preferably called only once in the program. You will find all these functions in the file `ctors.cpp`.
@@ -145,7 +145,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t *gpu_storage, uint32_t idx, c
 This function takes a sequence and its length, and append it in the data structure. It also adds the neccessary padding bases to ensure the sequence has a length which is a multiple of 8. Moreover, it takes care of allocating more memory if there is not enough room when adding the sequence. `SRC` is either `QUERY` or `TARGET`, depending upon which batch to fill. When executed, this function returns the offset to be filled by the user in `host_target_batch_offsets` or `host_query_batch_offsets`. The user also has to fill `host_target_batch_lens` or `host_query_batch_lens` with original length of sequences, i.e. length without pad bases. **The offset values include pad bases, whereas lengths are without pad bases**. The number of elements in offset and length arrays must be equal. The offset values allows the user to express the mode of pairwise alignment, i.e. one-to-one, one-to-all or one-to-many etc., between the query and traget sequences. The `current_n_alns` must appropriately be incremented to show the current number of alignments. `host_max_n_alns` is initially set equal to `max_n_alns` in `gasal_init_streams()` function. If the 'current_n_alns' exceeds `host_max_n_alns`, the user must call the following funnction to reallocate host offset, lengths and results arrays.March
 
 ```C
-void gasal_host_alns_resize(gasal_gpu_storage_t *gpu_storage, int new_max_alns, Parameters *params);
+void gasal_host_alns_resize(gasal_gpu_storage_t *gpu_storage, int new_max_alns, const Parameters &params);
 
 ```
 
