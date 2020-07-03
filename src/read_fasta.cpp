@@ -47,9 +47,9 @@ FastaInput ReadFasta(const std::string &filename){
     //Determine if the line starts with a special character
     const auto q = std::find(line_starts.begin(), line_starts.end(), input_line.front());
 
-    if(q!=line_starts.end()){                     //Line begins with a special character. It's the start of a new sequence!
-      fasta.modifiers.push_back(q-line_starts.begin()); //Make a note of which special modifying character was used (TODO: Use the character itself?)
-      fasta.headers.push_back(input_line.substr(1))  ;  //Copy the header text, dropping the start/mod character
+    if(q!=line_starts.end()){                        //Line begins with a special character. It's the start of a new sequence!
+      fasta.modifiers.push_back(*q);                 //Make a note of which special modifying character was used
+      fasta.headers.push_back(input_line.substr(1)); //Copy the header text, dropping the start/mod character
 
       if (reading_sequence) {
         // a sequence was already being read. Now it's done, so we should find its length.

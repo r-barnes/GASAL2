@@ -90,7 +90,7 @@ __global__ void	gasal_reversecomplement_kernel(
 	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
 
 	if (tid >= n_tasks) return;
-	if (query_op[tid] == 0 && target_op[tid] == 0) return;		// if there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
+	if (query_op[tid] == '>' && target_op[tid] == '>') return;		// if there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
 
 	const uint32_t packed_target_batch_idx = target_batch_offsets[tid] >> 3;//starting index of the target_batch sequence
 	const uint32_t packed_query_batch_idx = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
@@ -135,7 +135,7 @@ __global__ void	gasal_reversecomplement_kernel(
 			break;
 		}
 
-		if (*(op + tid) & 0x01) // reverse
+		if (*(op + tid)=='<' || *(op + tid)=='+') // reverse
 		{
 			// deal with N's : read last word, find how many N's, store that number as offset, and pad with that many for the last
 			uint8_t nbr_N = 0;
@@ -187,7 +187,7 @@ __global__ void	gasal_reversecomplement_kernel(
 			}
 		}
 
-    if (*(op+tid) & 0x02){ // complement
+    if (*(op+tid)=='/' || *(op+tid)=='+'){ // complement
       for (uint32_t i = 0; i < *(batch_regs); i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
         *(packed_batch + *(packed_batch_idx) + i) = complement_word(*(packed_batch + *(packed_batch_idx) + i)); //load 8 packed bases from head
       }
