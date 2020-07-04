@@ -38,19 +38,19 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 	fprintf(stderr, "[GASAL WARNING] Resizing gpu_storage from %d sequences to %d sequences... ", gpu_storage.host_max_n_alns,new_max_alns);
 	// don't care about realloc'ing gpu-sided fields as they will be taken care of before aligning.
 
-	gpu_storage.host_query_op =  cudaHostRealloc<uint8_t>((void*) gpu_storage.host_query_op, new_max_alns, gpu_storage.host_max_n_alns);
-	gpu_storage.host_target_op =  cudaHostRealloc<uint8_t>((void*) gpu_storage.host_target_op, new_max_alns, gpu_storage.host_max_n_alns);
+	gpu_storage.host_query_op.resize(new_max_alns);
+	gpu_storage.host_target_op.resize(new_max_alns);
 
 	if (params.algo == KSW)
-		gpu_storage.host_seed_scores = cudaHostRealloc<uint32_t>(gpu_storage.host_seed_scores, new_max_alns, gpu_storage.host_max_n_alns);
+		gpu_storage.host_seed_scores.resize(new_max_alns);
 	//fprintf(stderr, "_ops done ");
 
-	gpu_storage.host_query_batch_lens = cudaHostRealloc<uint32_t>((void*) gpu_storage.host_query_batch_lens, new_max_alns, gpu_storage.host_max_n_alns);
-	gpu_storage.host_target_batch_lens = cudaHostRealloc<uint32_t>((void*) gpu_storage.host_target_batch_lens, new_max_alns, gpu_storage.host_max_n_alns);
+	gpu_storage.host_query_batch_lens.resize(new_max_alns);
+	gpu_storage.host_target_batch_lens.resize(new_max_alns);
 	//fprintf(stderr, "_lens done ");
 
-	gpu_storage.host_query_batch_offsets = cudaHostRealloc<uint32_t>((void*) gpu_storage.host_query_batch_offsets, new_max_alns, gpu_storage.host_max_n_alns);
-	gpu_storage.host_target_batch_offsets = cudaHostRealloc<uint32_t>((void*) gpu_storage.host_target_batch_offsets, new_max_alns, gpu_storage.host_max_n_alns);
+	gpu_storage.host_query_batch_offsets.resize(new_max_alns);
+	gpu_storage.host_target_batch_offsets.resize(new_max_alns);
 	//fprintf(stderr, "_offsets done ");
 
 	gasal_res_destroy_host(gpu_storage.host_res);
@@ -79,14 +79,14 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 }
 
 // operation (Reverse/complement) filler.
-void gasal_op_fill(const gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, data_source SRC){
+void gasal_op_fill(gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, data_source SRC){
   uint8_t *host_op = nullptr;
   switch(SRC){
     case QUERY:
-      host_op = gpu_storage.host_query_op;
+      host_op = gpu_storage.host_query_op.data();
       break;
     case TARGET:
-      host_op = gpu_storage.host_target_op;
+      host_op = gpu_storage.host_target_op.data();
       break;
     default:
       break;

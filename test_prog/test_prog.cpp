@@ -93,9 +93,9 @@ int main(int argc, char **argv) {
   Timer total_time;
   total_time.start();
   omp_set_num_threads(args.n_threads);
-  auto *const gpu_storage_vecs = new gasal_gpu_storage_v[args.n_threads];
+  std::vector<gasal_gpu_storage_v> gpu_storage_vecs;
   for (int z = 0; z < args.n_threads; z++) {
-    gpu_storage_vecs[z] = gasal_init_gpu_storage_v(NB_STREAMS);// creating NB_STREAMS streams per thread
+    gpu_storage_vecs.emplace_back(NB_STREAMS);// creating NB_STREAMS streams per thread
 
     /*
       About memory sizes:
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     */
     //initializing the streams by allocating the required CPU and GPU memory
     // note: the calculations of the detailed sizes to allocate could be done on the library side (to hide it from the user's perspective)
-    gasal_init_streams(&(gpu_storage_vecs[z]), (input_data.first.maximum_sequence_length + 7),
+    gasal_init_streams(gpu_storage_vecs[z], (input_data.first.maximum_sequence_length + 7),
             (maximum_sequence_length + 7) ,
              STREAM_BATCH_SIZE, //device
              args);
@@ -142,26 +142,26 @@ int main(int argc, char **argv) {
 
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "Number of gpu_batch in gpu_batch_arr : " << gpu_storage_vecs[omp_get_thread_num()].n << std::endl;
+    std::cerr << "Number of gpu_batch in gpu_batch_arr : " << gpu_storage_vecs[omp_get_thread_num()].size() << std::endl;
     std::cerr << "[TEST_PROG DEBUG]: ";
     std::cerr << "Number of gpu_storage_vecs in a gpu_batch : " << omp_get_thread_num()+1 << std::endl;
   #endif
 
-  std::vector<gpu_batch> gpu_batch_arr(gpu_storage_vecs[omp_get_thread_num()].n);
+  std::vector<gpu_batch> gpu_batch_arr(gpu_storage_vecs[omp_get_thread_num()].size());
 
   for(size_t z = 0; z < gpu_batch_arr.size(); z++) {
-    gpu_batch_arr[z].gpu_storage = &(gpu_storage_vecs[omp_get_thread_num()].a[z]);
+    gpu_batch_arr[z].gpu_storage = &(gpu_storage_vecs[omp_get_thread_num()].at(z));
   }
 
   if (n_seqs > 0) {
     while (n_batchs_done < thread_n_batchs[omp_get_thread_num()]) { // Loop on streams
       int gpu_batch_arr_idx = 0;
       //------------checking the availability of a "free" stream"-----------------
-      while(gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].n && (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->is_free != 1) {
+      while(gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].size() && (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->is_free != 1) {
         gpu_batch_arr_idx++;
       }
 
-      if (seqs_done < n_seqs && gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].n) {
+      if (seqs_done < n_seqs && gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].size()) {
         uint32_t query_batch_idx = 0;
         uint32_t target_batch_idx = 0;
         unsigned int j = 0;
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
       //-------------------------------print alignment results----------------------------------------
 
       gpu_batch_arr_idx = 0;
-      while (gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].n) {//loop through all the streams and print the results
+      while (gpu_batch_arr_idx < gpu_storage_vecs[omp_get_thread_num()].size()) {//loop through all the streams and print the results
                                           //of the finished streams.
         if (gasal_is_aln_async_done(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage) == 0) {
           int j = 0;
@@ -315,10 +315,9 @@ int main(int argc, char **argv) {
   }
 
   for (int z = 0; z < args.n_threads; z++) {
-    gasal_destroy_streams(&(gpu_storage_vecs[z]), args);
-    gasal_destroy_gpu_storage_v(&(gpu_storage_vecs[z]));
+    gasal_destroy_streams(gpu_storage_vecs[z], args);
   }
-  free(gpu_storage_vecs);
+
   total_time.stop();
 
   std::cerr << std::endl << "Done" << std::endl;

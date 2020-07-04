@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cuda_runtime.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/system/cuda/experimental/pinned_allocator.h>
 
 #include <cstdint>
+#include <vector>
 
 #ifndef HOST_MALLOC_SAFETY_FACTOR
 #define HOST_MALLOC_SAFETY_FACTOR 5
@@ -17,6 +21,10 @@
 			}\
 		}while(0)\
 
+namespace thrust {
+	template<class T>
+	using host_pinned_vector = thrust::host_vector<T, thrust::system::cuda::experimental::pinned_allocator<T>>;
+}
 
 enum comp_start{
 	WITHOUT_START,
@@ -38,7 +46,7 @@ enum data_source{
 	BOTH
 };
 
-enum algo_type{
+enum algo_type {
 	UNKNOWN,
 	GLOBAL,
 	SEMI_GLOBAL,
@@ -67,7 +75,7 @@ struct host_batch{
 typedef struct host_batch host_batch_t;
 
 // Data structure to hold results. Can be instantiated for host or device memory (see res.cpp)
-struct gasal_res{
+struct gasal_res_t {
 	int32_t *aln_score = nullptr;
 	int32_t *query_batch_end = nullptr;
 	int32_t *target_batch_end = nullptr;
@@ -76,34 +84,35 @@ struct gasal_res{
 	uint8_t *cigar = nullptr;
 	uint32_t *n_cigar_ops = nullptr;
 };
-typedef struct gasal_res gasal_res_t;
 
 //stream data
-typedef struct {
-	uint8_t *unpacked_query_batch = nullptr;
-	uint8_t *unpacked_target_batch = nullptr;
-	uint32_t *packed_query_batch = nullptr;
-	uint32_t *packed_target_batch = nullptr;
-	uint32_t *query_batch_offsets = nullptr;
-	uint32_t *target_batch_offsets = nullptr;
-	uint32_t *query_batch_lens = nullptr;
-	uint32_t *target_batch_lens = nullptr;
+struct gasal_gpu_storage_t {
+	thrust::device_vector<uint8_t> unpacked_query_batch;
+	thrust::device_vector<uint8_t> unpacked_target_batch;
 
-	uint32_t *host_seed_scores = nullptr;
+	thrust::device_vector<uint32_t> packed_query_batch;
+	thrust::device_vector<uint32_t> packed_target_batch;
+
+	thrust::device_vector<uint32_t> query_batch_offsets;
+	thrust::device_vector<uint32_t> target_batch_offsets;
+	thrust::device_vector<uint32_t> query_batch_lens;
+	thrust::device_vector<uint32_t> target_batch_lens;
+
+	thrust::host_pinned_vector<uint32_t> host_seed_scores;
 	uint32_t *seed_scores = nullptr;
 
 	host_batch_t *extensible_host_unpacked_query_batch = nullptr;
 	host_batch_t *extensible_host_unpacked_target_batch = nullptr;
 
-	uint8_t *host_query_op = nullptr;
-	uint8_t *host_target_op = nullptr;
-	uint8_t *query_op = nullptr;
-	uint8_t *target_op = nullptr;
+	thrust::host_pinned_vector<uint8_t> host_query_op;
+	thrust::host_pinned_vector<uint8_t> host_target_op;
+	thrust::device_vector<uint8_t> query_op;
+	thrust::device_vector<uint8_t> target_op;
 
-	uint32_t *host_query_batch_offsets = nullptr;
-	uint32_t *host_target_batch_offsets = nullptr;
-	uint32_t *host_query_batch_lens = nullptr;
-	uint32_t *host_target_batch_lens = nullptr;
+	std::vector<uint32_t> host_query_batch_offsets;
+	std::vector<uint32_t> host_target_batch_offsets;
+	std::vector<uint32_t> host_query_batch_lens;
+	std::vector<uint32_t> host_target_batch_lens;
 
 	gasal_res_t *host_res = nullptr; // the results that can be read on host - THE STRUCT IS ON HOST SIDE, ITS CONTENT IS ON HOST SIDE.
 	gasal_res_t *device_cpy = nullptr; // a struct that contains the pointers to the device side - THE STRUCT IS ON HOST SIDE, but the CONTENT is malloc'd on and points to the DEVICE SIDE
@@ -129,15 +138,10 @@ typedef struct {
 	cudaStream_t str;
 	int is_free;
 	int id; //this can be useful in cases where a gasal_gpu_storage only contains PARTS of an alignment (like a seed-extension...), to gather results.
-
-} gasal_gpu_storage_t;
+};
 
 //vector of streams
-typedef struct {
-	int n;
-	gasal_gpu_storage_t *a = nullptr;
-}gasal_gpu_storage_v;
-
+typedef std::vector<gasal_gpu_storage_t> gasal_gpu_storage_v;
 
 //match/mismatch and gap penalties
 typedef struct{

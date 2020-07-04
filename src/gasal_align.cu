@@ -82,6 +82,8 @@ void gasal_aln_async(
 	const uint32_t actual_n_alns,
 	const Parameters &params
 ){
+	thrust::cuda::par.on(gpu_storage.str);
+
 	check_gasal_aln_async_inputs(gpu_storage, actual_query_batch_bytes, actual_target_batch_bytes, actual_n_alns, params);
 
 	//--------------if pre-allocated memory is less, allocate more--------------------------
@@ -94,11 +96,9 @@ void gasal_aln_async(
 
 		gpu_storage.gpu_max_query_batch_bytes = gpu_storage.gpu_max_query_batch_bytes * i;
 
-		if (gpu_storage.unpacked_query_batch) CHECKCUDAERROR(cudaFree(gpu_storage.unpacked_query_batch));
-		if (gpu_storage.packed_query_batch)   CHECKCUDAERROR(cudaFree(gpu_storage.packed_query_batch));
-
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.unpacked_query_batch), gpu_storage.gpu_max_query_batch_bytes * sizeof(uint8_t)));
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.packed_query_batch), (gpu_storage.gpu_max_query_batch_bytes/8) * sizeof(uint32_t)));
+		//Destroy existing vectors and make new, longer ones
+		gpu_storage.unpacked_query_batch.resize(gpu_storage.gpu_max_query_batch_bytes);
+		gpu_storage.packed_query_batch.resize(gpu_storage.gpu_max_query_batch_bytes/8);
 
 		if (params.start_pos==WITH_TB){
 			fprintf(stderr, "[GASAL WARNING:] actual_query_batch_bytes(%d) > Allocated HOST memory for CIGAR (gpu_max_query_batch_bytes=%d). Therefore, allocating %d bytes on the host (gpu_max_query_batch_bytes=%d). Performance may be lost if this is repeated many times.\n", actual_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes*i, gpu_storage.gpu_max_query_batch_bytes*i);
@@ -115,11 +115,8 @@ void gasal_aln_async(
 
 		gpu_storage.gpu_max_target_batch_bytes = gpu_storage.gpu_max_target_batch_bytes * i;
 
-		if (gpu_storage.unpacked_target_batch) CHECKCUDAERROR(cudaFree(gpu_storage.unpacked_target_batch));
-		if (gpu_storage.packed_target_batch)   CHECKCUDAERROR(cudaFree(gpu_storage.packed_target_batch));
-
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.unpacked_target_batch), gpu_storage.gpu_max_target_batch_bytes * sizeof(uint8_t)));
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.packed_target_batch), (gpu_storage.gpu_max_target_batch_bytes/8) * sizeof(uint32_t)));
+		gpu_storage.unpacked_target_batch.resize(gpu_storage.gpu_max_target_batch_bytes);
+		gpu_storage.packed_target_batch.resize(gpu_storage.gpu_max_target_batch_bytes/8);
 	}
 
 	if (gpu_storage.gpu_max_n_alns < actual_n_alns) {
@@ -130,17 +127,17 @@ void gasal_aln_async(
 
 		gpu_storage.gpu_max_n_alns = gpu_storage.gpu_max_n_alns * i;
 
-		if (gpu_storage.query_batch_offsets)  CHECKCUDAERROR(cudaFree(gpu_storage.query_batch_offsets));
-		if (gpu_storage.target_batch_offsets) CHECKCUDAERROR(cudaFree(gpu_storage.target_batch_offsets));
-		if (gpu_storage.query_batch_lens)     CHECKCUDAERROR(cudaFree(gpu_storage.query_batch_lens));
-		if (gpu_storage.target_batch_lens)    CHECKCUDAERROR(cudaFree(gpu_storage.target_batch_lens));
+		gpu_storage.query_batch_offsets.clear();  gpu_storage.query_batch_offsets.shrink_to_fit();
+		gpu_storage.target_batch_offsets.clear(); gpu_storage.target_batch_offsets.shrink_to_fit();
+		gpu_storage.query_batch_lens.clear();     gpu_storage.query_batch_lens.shrink_to_fit();
+		gpu_storage.target_batch_lens.clear();    gpu_storage.target_batch_lens.shrink_to_fit();
 
 		if (gpu_storage.seed_scores) CHECKCUDAERROR(cudaFree(gpu_storage.seed_scores));
 
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.query_batch_lens), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.target_batch_lens), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.query_batch_offsets), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.target_batch_offsets), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
+		gpu_storage.query_batch_lens.resize(gpu_storage.gpu_max_n_alns);
+		gpu_storage.target_batch_lens.resize(gpu_storage.gpu_max_n_alns);
+		gpu_storage.query_batch_offsets.resize(gpu_storage.gpu_max_n_alns);
+		gpu_storage.target_batch_offsets.resize(gpu_storage.gpu_max_n_alns);
 
 		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.seed_scores), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
 
@@ -164,8 +161,10 @@ void gasal_aln_async(
 
 	host_batch_t *current = gpu_storage.extensible_host_unpacked_query_batch;
 	for(;current;current = current->next){
+		gpu_storage.unpacked_query_batch.resize(current->data_size);
 		//gasal_host_batch_printall(current);
-		CHECKCUDAERROR(cudaMemcpyAsync( &(gpu_storage.unpacked_query_batch[current->offset]),
+		CHECKCUDAERROR(cudaMemcpyAsync(
+			thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data() + (current->offset)),
 										current->data,
 										current->data_size,
 										cudaMemcpyHostToDevice,
@@ -174,7 +173,8 @@ void gasal_aln_async(
 
 	current = gpu_storage.extensible_host_unpacked_target_batch;
 	for(;current;current = current->next){
-		CHECKCUDAERROR(cudaMemcpyAsync( &(gpu_storage.unpacked_target_batch[current->offset]),
+		CHECKCUDAERROR(cudaMemcpyAsync(
+			thrust::raw_pointer_cast(gpu_storage.unpacked_target_batch.data() + (current->offset)),
 										current->data,
 										current->data_size,
 										cudaMemcpyHostToDevice,
@@ -193,8 +193,8 @@ void gasal_aln_async(
 	//Launch packing kernel
 	if(!params.isPacked){
 		pack_data<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(
-			(const uint32_t*)gpu_storage.unpacked_query_batch,
-			gpu_storage.packed_query_batch,
+			(const uint32_t*)thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data()),
+			thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),
 			actual_query_batch_bytes/4
 		);
 		const auto pack_query_err = cudaGetLastError();
@@ -204,8 +204,8 @@ void gasal_aln_async(
 		}
 
 		pack_data<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(
-			(const uint32_t*)gpu_storage.unpacked_target_batch,
-			gpu_storage.packed_target_batch,
+			(const uint32_t*)thrust::raw_pointer_cast(gpu_storage.unpacked_target_batch.data()),
+			thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),
 			actual_target_batch_bytes/4
 		);
 		const auto pack_target_err = cudaGetLastError();
@@ -219,10 +219,10 @@ void gasal_aln_async(
 	// We could reverse-complement before packing, but we would get 2x more read-writes to memory.
 
   //----------------------launch copying of sequence offsets and lengths from CPU to GPU--------------------------------------
-  CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.query_batch_lens,     gpu_storage.host_query_batch_lens, actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice, gpu_storage.str));
-  CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.target_batch_lens,    gpu_storage.host_target_batch_lens, actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
-  CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.query_batch_offsets,  gpu_storage.host_query_batch_offsets, actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
-	CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.target_batch_offsets, gpu_storage.host_target_batch_offsets, actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
+  CHECKCUDAERROR(cudaMemcpyAsync(thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),     thrust::raw_pointer_cast(gpu_storage.host_query_batch_lens.data()),     actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice, gpu_storage.str));
+  CHECKCUDAERROR(cudaMemcpyAsync(thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),    thrust::raw_pointer_cast(gpu_storage.host_target_batch_lens.data()),    actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
+  CHECKCUDAERROR(cudaMemcpyAsync(thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),  thrust::raw_pointer_cast(gpu_storage.host_query_batch_offsets.data()),  actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
+	CHECKCUDAERROR(cudaMemcpyAsync(thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()), thrust::raw_pointer_cast(gpu_storage.host_target_batch_offsets.data()), actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
 
 	// if needed copy seed scores
 	if (params.algo == KSW)
@@ -232,28 +232,29 @@ void gasal_aln_async(
 			fprintf(stderr, "seed_scores == NULL\n");
 
 		}
-		if (gpu_storage.host_seed_scores == NULL)
+		if (gpu_storage.host_seed_scores.empty())
 		{
 			fprintf(stderr, "host_seed_scores == NULL\n");
 		}
-		if (gpu_storage.seed_scores == NULL || gpu_storage.host_seed_scores == NULL)
+		if (gpu_storage.seed_scores == NULL || gpu_storage.host_seed_scores.empty())
 			exit(EXIT_FAILURE);
 
-		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.seed_scores, gpu_storage.host_seed_scores, actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice, gpu_storage.str));
+		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.seed_scores, thrust::raw_pointer_cast(gpu_storage.host_seed_scores.data()), actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice, gpu_storage.str));
 	}
     //--------------------------------------------------------------------------------------------------------------------------
 
 	//----------------------launch copying of sequence operations (reverse/complement) from CPU to GPU--------------------------
 	if (params.isReverseComplement)
 	{
-		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.query_op, gpu_storage.host_query_op, actual_n_alns * sizeof(uint8_t), cudaMemcpyHostToDevice,  gpu_storage.str));
-		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.target_op, gpu_storage.host_target_op, actual_n_alns * sizeof(uint8_t), cudaMemcpyHostToDevice,  gpu_storage.str));
+		//TODO: Put the copy on the same stream somehow?
+		gpu_storage.query_op = gpu_storage.host_query_op;
+		gpu_storage.target_op = gpu_storage.host_target_op;
 		//--------------------------------------launch reverse-complement kernel------------------------------------------------------
 		new_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(
-			gpu_storage.packed_query_batch,
-			gpu_storage.query_batch_lens,
-			gpu_storage.query_batch_offsets,
-			gpu_storage.query_op,
+			thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),
+			thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),
+			thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),
+			thrust::raw_pointer_cast(gpu_storage.query_op.data()),
 			actual_n_alns
 		);
 		const cudaError_t reversecomplement_kernel_err1 = cudaGetLastError();
@@ -263,10 +264,10 @@ void gasal_aln_async(
 		}
 
 		new_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(
-			gpu_storage.packed_target_batch,
-			gpu_storage.target_batch_lens,
-			gpu_storage.target_batch_offsets,
-			gpu_storage.target_op,
+			thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),
+			thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),
+			thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),
+			thrust::raw_pointer_cast(gpu_storage.target_op.data()),
 			actual_n_alns
 		);
 		const cudaError_t reversecomplement_kernel_err2 = cudaGetLastError();
@@ -310,8 +311,8 @@ void gasal_aln_async(
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->target_batch_end, gpu_storage.device_cpy->target_batch_end, actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
 
 	if (params.start_pos == WITH_TB) {
-		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->cigar, gpu_storage.unpacked_query_batch, actual_query_batch_bytes * sizeof(uint8_t), cudaMemcpyDeviceToHost, gpu_storage.str));
-		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->n_cigar_ops, gpu_storage.query_batch_lens, actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
+		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->cigar, thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data()), actual_query_batch_bytes * sizeof(uint8_t), cudaMemcpyDeviceToHost, gpu_storage.str));
+		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->n_cigar_ops, thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()), actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
 	}
 	//-----------------------------------------------------------------------------------------------------------------------
 

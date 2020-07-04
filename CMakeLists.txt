@@ -24,9 +24,9 @@ endif()
 
 add_library(gasal2
   src/args_parser.cpp
-  src/ctors.cpp
+  src/ctors.cu
   src/gasal_align.cu
-  src/host_batch.cpp
+  src/host_batch.cu
   src/interfaces.cpp
   src/read_fasta.cpp
   src/res.cpp
