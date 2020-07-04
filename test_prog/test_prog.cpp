@@ -55,42 +55,36 @@ int main(int argc, char **argv) {
     std::cerr << "Size of read batches are: query=" << input_data.first.total_sequence_bytes << ", target=" << input_data.second.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
   #endif
 
-
-  // transforming the _mod into a char* array (to be passed to GASAL, which deals with C types)
-  auto *const target_seq_mod = new uint8_t [total_seqs];
-  auto *const query_seq_mod  = new uint8_t [total_seqs];
   auto *const target_seq_id  = new uint32_t[total_seqs];
   auto *const query_seq_id   = new uint32_t[total_seqs];
-
   for (size_t i = 0; i < total_seqs; i++){
-    query_seq_mod[i] = input_data.first.modifiers.at(i);
     query_seq_id[i] = i;
-
-    target_seq_mod[i] = input_data.second.modifiers.at(i);
     target_seq_id[i] = i;
   }
 
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: query, mod@id=";
     for (size_t i = 0; i < total_seqs; i++){
-      if (query_seq_mod[i] > 0)
-        std::cerr << +(query_seq_mod[i]) << "@" << query_seq_id[i] << "| ";
+      if (input_data.first.modifiers.at(i) > 0)
+        std::cerr << +(input_data.first.modifiers.at(i)) << "@" << query_seq_id[i] << "| ";
     }
     std::cerr << std::endl;
   #endif
 
-  auto *const thread_seqs_idx  = new int[args.n_threads];
-  auto *const thread_n_seqs    = new int[args.n_threads];
-  auto *const thread_n_batchs  = new int[args.n_threads];
-  auto *const thread_misc_time = new double[args.n_threads];
+  std::vector<int> thread_seqs_idx;
+  std::vector<int> thread_n_seqs;
+  std::vector<int> thread_n_batchs;
 
   size_t thread_batch_size = (int)ceil((double)total_seqs/args.n_threads);
   size_t n_seqs_alloc = 0;
   for (int i = 0; i < args.n_threads; i++){//distribute the sequences among the threads equally
-    thread_seqs_idx[i] = n_seqs_alloc;
-    if (n_seqs_alloc + thread_batch_size < total_seqs) thread_n_seqs[i] = thread_batch_size;
-    else thread_n_seqs[i] = total_seqs - n_seqs_alloc;
-    thread_n_batchs[i] = (int)ceil((double)thread_n_seqs[i]/(STREAM_BATCH_SIZE));
+    thread_seqs_idx.push_back(n_seqs_alloc);
+    if (n_seqs_alloc + thread_batch_size < total_seqs){
+      thread_n_seqs.push_back(thread_batch_size);
+    } else {
+      thread_n_seqs.push_back(total_seqs - n_seqs_alloc);
+    }
+    thread_n_batchs.push_back( (int)ceil((double)thread_n_seqs[i]/(STREAM_BATCH_SIZE)) );
     n_seqs_alloc += thread_n_seqs[i];
   }
 
@@ -217,8 +211,8 @@ int main(int argc, char **argv) {
         #endif
 
         // Here, we fill the operations arrays for the current batch to be processed by the stream
-        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_seq_mod + seqs_done - j, j, QUERY);
-        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, target_seq_mod + seqs_done - j, j, TARGET);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, QUERY);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, TARGET);
 
 
         gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch = j;
@@ -326,18 +320,6 @@ int main(int argc, char **argv) {
   }
   free(gpu_storage_vecs);
   total_time.stop();
-
-  /*
-  string algorithm = al_type;
-  string start_type[2] = {"without_start", "with_start"};
-  al_type += "_";
-  al_type += start_type[start_pos==WITH_START];
-  */
-
-  double av_misc_time = 0.0;
-  for (int i = 0; i < args.n_threads; ++i){
-    av_misc_time += (thread_misc_time[i]/args.n_threads);
-  }
 
   std::cerr << std::endl << "Done" << std::endl;
   fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.getTime());
