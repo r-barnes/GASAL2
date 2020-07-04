@@ -13,6 +13,21 @@
 //#define N_PAK ('N'&0x0F)
 
 
+__device__ uint32_t pack_2words(const uint32_t word1, const uint32_t word2){
+  uint32_t packed = 0;
+  packed |= ((word1 >>  0) & 0xF) << 28;
+  packed |= ((word1 >>  8) & 0xF) << 24;
+  packed |= ((word1 >> 16) & 0xF) << 20;
+  packed |= ((word1 >> 24) & 0xF) << 16;
+  packed |= ((word2 >>  0) & 0xF) << 12;
+  packed |= ((word2 >>  8) & 0xF) <<  8;
+  packed |= ((word2 >> 16) & 0xF) <<  4;
+  packed |= ((word2 >> 24) & 0xF) <<  0;
+  return packed;
+}
+
+
+
 __global__ void pack_data(
 	const uint32_t *const unpacked,
 	uint32_t *const packed,
@@ -26,18 +41,9 @@ __global__ void pack_data(
   //Grid stride loop in which each thread takes 2 items
   //See: https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
   for(int i=thread_id; i<N/2; i+=stride){
-    const uint32_t reg1 = unpacked[2*i  ]; //Load 4 bases of the query sequence from global memory
-    const uint32_t reg2 = unpacked[2*i+1]; //Load another 4 bases
-    uint32_t packed_reg = 0;
-    packed_reg |= ((reg1 >>  0) & 0xF) << 28; // ----
-    packed_reg |= ((reg1 >>  8) & 0xF) << 24; //    |
-    packed_reg |= ((reg1 >> 16) & 0xF) << 20; //    |
-    packed_reg |= ((reg1 >> 24) & 0xF) << 16; //    |
-    packed_reg |= ((reg2 >>  0) & 0xF) << 12; //     > pack sequence
-    packed_reg |= ((reg2 >>  8) & 0xF) <<  8; //    |
-    packed_reg |= ((reg2 >> 16) & 0xF) <<  4; //    |
-    packed_reg |= ((reg2 >> 24) & 0xF) <<  0; //-----
-    packed[i] = packed_reg;
+    const uint32_t word1 = unpacked[2*i  ]; //Load 4 bases of the query sequence from global memory
+    const uint32_t word2 = unpacked[2*i+1]; //Load another 4 bases
+    packed[i] = pack_2words(word1, word2);
 	}
 }
 
@@ -111,9 +117,9 @@ __global__ void	gasal_reversecomplement_kernel(
 
 	const uint32_t packed_target_batch_idx = target_batch_offsets[tid] >> 3;//starting index of the target_batch sequence
 	const uint32_t packed_query_batch_idx = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
-	const uint32_t read_len = query_batch_lens[tid];
+	const uint32_t seq_len = query_batch_lens[tid];
 	const uint32_t ref_len = target_batch_lens[tid];
-	const uint32_t query_batch_regs = (read_len >> 3) + (read_len&7 ? 1 : 0);//number of 32-bit words holding sequence of query_batch
+	const uint32_t query_batch_regs = (seq_len >> 3) + (seq_len&7 ? 1 : 0);//number of 32-bit words holding sequence of query_batch
 	const uint32_t target_batch_regs = (ref_len >> 3) + (ref_len&7 ? 1 : 0);//number of 32-bit words holding sequence of target_batch
 
 	const uint32_t query_batch_regs_to_swap = (query_batch_regs >> 1) + (query_batch_regs & 1); // that's (query_batch_regs / 2) + 1 if it's odd, + 0 otherwise. Used for reverse (we start a both ends, and finish at the center of the sequence)
@@ -227,38 +233,51 @@ __global__ void	gasal_reversecomplement_kernel(
 
 
 
-
+//TODO: Clean up padding
 // * - '>' translates to 0b00 (0) = Forward, natural
 // * - '<' translates to 0b01 (1) = Reverse, natural
 // * - '/' translates to 0b10 (2) = Forward, complemented
 // * - '+' translates to 0b11 (3) = Reverse, complemented
+//Kernel uses one thread per sequence to reverse and complement that sequence
+//TODO: Figure out a way to use grid strided loops and memory coalescing to
+//accelerate this
 __global__ void	new_reversecomplement_kernel(
   uint32_t       *const packed_batch,
   const uint32_t *const batch_lengths,
   const uint32_t *const batch_offsets,
   const uint8_t  *const op,
-  const uint32_t        n_tasks
+  const uint32_t        batch_size
 ){
-  const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+  const auto thread_id = blockIdx.x * blockDim.x + threadIdx.x;
 
-  if (tid >= n_tasks) return;
+  if (thread_id >= batch_size) return; //More threads than sequences, so quit
+  if (op[thread_id] == '>') return;    //If the sequence is forward natural, there's nothing to do
 
-  // If there's nothing to do (op=0, meaning sequence is Forward Natural), just exit the kernel ASAP.
-  if (op[tid] == '>') return;
+  //Get the starting index of the batch. `batch_offsets` is measured in ASCII
+  //characters. We've packed bytes into nibbles and stored the data in
+  //uint32_t types which hold 8 nibbles, so we divide by 8 to get the packed
+  //address.
+  const auto packed_batch_idx = batch_offsets[thread_id]/8;
 
-  const auto packed_batch_idx = batch_offsets[tid]/8;  //Starting index of the query_batch sequence
-  const auto read_len         = batch_lengths[tid];    //Number of 32-bit words holding sequence of query_batch
-  const auto batch_regs       = (read_len/8) + (read_len&7 ? 1 : 0);
+  //Get the length of the sequence. As above, we divide by 8 to move from ASCII
+  //to packed data. If the unpacked data wasn't a multiple of 8, then we'll
+  //have added one additional uint32_t. TODO: Doesn't this mess up the offsets?
+  auto seq_len = batch_lengths[thread_id];
+  seq_len = (seq_len/8) + (seq_len%8!=0);
+
+  //Alias `packed_batch` to make things easier below
+  auto my_batch = &packed_batch[packed_batch_idx];
 
   //That's (query_batch_regs / 2) + 1 if it's odd, + 0 otherwise. Used for
   //reverse (we start a both ends, and finish at the center of the sequence).
-  const auto batch_regs_to_swap = (batch_regs/2) + (batch_regs & 1);
+  const auto batch_regs_to_swap = (seq_len/2) + (seq_len & 1);
 
-  if (op[tid]=='<' || op[tid]=='+'){ // reverse
+  //TODO: This sequentializes threads with different operations
+  if (op[thread_id]=='<' || op[thread_id]=='+'){ // reverse
     // Deal with N's: read last word, find how many N's, store that number as offset,
     // and pad with that many for the last. Since we operate on nibbles, we multiply
     // by four.
-    const uint8_t nbr_N = 4*count_word_trailing_n(packed_batch[packed_batch_idx + batch_regs-1]);
+    const uint8_t nbr_N = 4*count_word_trailing_n(my_batch[seq_len-1]);
 
     for (uint32_t i = 0; i < batch_regs_to_swap; i++){ // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
       /* This is the current operation flow:\
@@ -271,31 +290,30 @@ __global__ void	new_reversecomplement_kernel(
       You progress through both heads and tails that way, until you reach the center of the sequence.
       When you reach it, you actually don't write one of the words to avoid overwrite.
       */
-      const uint32_t rpac_1 = packed_batch[packed_batch_idx+i]; //load 8 packed bases from head
-      const uint32_t rpac_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] << (32-nbr_N)) | (packed_batch[packed_batch_idx + batch_regs-1 - i] >> nbr_N);
+      const uint32_t rpac_1 = my_batch[i]; //load 8 packed bases from head
+      const uint32_t rpac_2 = (my_batch[seq_len-2 - i] << (32-nbr_N)) | (my_batch[seq_len-1 - i] >> nbr_N);
 
       const uint32_t reverse_rpac_1 = reverse_word(rpac_1);
       const uint32_t reverse_rpac_2 = reverse_word(rpac_2);
 
       // last swap operated manually, because of its irregular size (32 - 4*nbr_N bits, hence 8 - nbr_N nibbles)
 
-      const uint32_t to_queue_1 = (reverse_rpac_1 << nbr_N) | (packed_batch[packed_batch_idx + batch_regs-1 - i] & ((1<<nbr_N) - 1));
-      const uint32_t to_queue_2 = (packed_batch[packed_batch_idx + batch_regs-2 - i] & (0xFFFFFFFF - ((1<<nbr_N) - 1))) | (reverse_rpac_1 >> (32-nbr_N));
+      const uint32_t to_queue_1 = (reverse_rpac_1 << nbr_N) | (my_batch[seq_len-1 - i] & ((1<<nbr_N) - 1));
+      const uint32_t to_queue_2 = (my_batch[seq_len-2 - i] & (0xFFFFFFFF - ((1<<nbr_N) - 1))) | (reverse_rpac_1 >> (32-nbr_N));
 
       //printf("KERNEL DEBUG: rpac_1 Word before reverse: %x, after: %x, split into %x + %x \n", rpac_1, reverse_rpac_1, to_queue_2, to_queue_1 );
       //printf("KERNEL DEBUG: rpac_2 Word before reverse: %x, after: %x\n", rpac_2, reverse_rpac_2 );
 
-      packed_batch[packed_batch_idx + i] = reverse_rpac_2;
-      packed_batch[packed_batch_idx + batch_regs-1 - i] = to_queue_1;
+      my_batch[i] = reverse_rpac_2;
+      my_batch[seq_len-1 - i] = to_queue_1;
       if (i!=batch_regs_to_swap-1)
-        packed_batch[packed_batch_idx + batch_regs-2 - i] = to_queue_2;
+        my_batch[seq_len-2 - i] = to_queue_2;
     }
   }
 
-  //TODO: Turn into a grid strided loop
-  if (op[tid]=='/' || op[tid]=='+'){ // Complement
-    for (uint32_t i = 0; i < batch_regs; i++){ // Complement all words
-      packed_batch[packed_batch_idx + i] = complement_word(packed_batch[packed_batch_idx + i]); //load 8 packed bases from head
+  if (op[thread_id]=='/' || op[thread_id]=='+'){  // Complement
+    for (uint32_t i = 0; i < seq_len; i++){    // Complement all words
+      my_batch[i] = complement_word(my_batch[i]);
     }
   }
 }

@@ -1,6 +1,8 @@
 #include "doctest.h"
 #include <kernels/pack_rc_seqs.cuh>
 
+#include <thrust/device_vector.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <string>
@@ -22,7 +24,7 @@ const std::string bases = "GCTAN";
       if (err!=cudaSuccess) { \
         fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(err), err,  __LINE__, __FILE__); \
       }\
-      REQUIRE(err==cudaSuccess); \
+      REQUIRE_MESSAGE(err==cudaSuccess, cudaGetErrorString(err)); \
     }
 
 
@@ -42,60 +44,6 @@ std::string Unloadword(uint32_t word){
 
 
 
-std::string RandomWord(){
-  std::string input;
-  for(int i=0;i<8;i++)
-    input += bases.at(rand()%bases.size());
-  return input;
-}
-
-
-
-TEST_CASE("Packing"){
-  const std::string unpacked_query_seed = "GAACTGCCGAGAAGTCACAGAAGGGACTGTGG";
-  std::string unpacked_query;
-  for(int i=0;i<100;i++)
-    unpacked_query += unpacked_query_seed;
-
-  CHECK(unpacked_query.size()%8==0);
-
-  const auto unpacked_size = unpacked_query.size()/4;
-  const auto packed_size   = unpacked_size/2;
-
-  uint32_t *unpacked_query_dev;
-  CHECKCUDAERROR(cudaMalloc(&unpacked_query_dev, unpacked_size*sizeof(uint32_t)));
-  CHECKCUDAERROR(cudaMemcpy(unpacked_query_dev, (uint32_t*)unpacked_query.data(), unpacked_size*sizeof(uint32_t), cudaMemcpyHostToDevice));
-
-  uint32_t *packed_query_dev;
-  CHECKCUDAERROR(cudaMalloc(&packed_query_dev, packed_size*sizeof(uint32_t)));
-
-  const uint32_t BLOCKDIM = 128;
-  const uint32_t N_BLOCKS = 30;
-
-  pack_data<<<N_BLOCKS, BLOCKDIM>>>(
-    unpacked_query_dev,
-    packed_query_dev,
-    unpacked_size
-  );
-
-  const auto err = cudaGetLastError();
-  CHECK(err==cudaSuccess);
-
-  CHECKCUDAERROR(cudaDeviceSynchronize());
-
-  std::vector<uint32_t> packed_query (packed_size);
-
-  CHECKCUDAERROR(cudaMemcpy(packed_query.data(),  packed_query_dev,  packed_size*sizeof(uint32_t), cudaMemcpyDeviceToHost));
-
-  std::string packed_result;
-  for(const auto &x: packed_query)
-    packed_result += Unloadword(x);
-
-  CHECK(unpacked_query==packed_result);
-}
-
-
-
 uint32_t LoadWord(const std::string &nibbles){
   REQUIRE(nibbles.size()==8);
   uint32_t packed = 0;
@@ -109,6 +57,197 @@ uint32_t LoadWord(const std::string &nibbles){
   packed |= ((nibbles[7]&0xF)<< 0);
   return packed;
 }
+
+
+
+std::string RandomWord(){
+  std::string input;
+  for(int i=0;i<8;i++)
+    input += bases.at(rand()%bases.size());
+  return input;
+}
+
+
+
+std::string RandomInput(){
+  int length = rand()%2048;
+  length -= length%8;
+  CHECK(length%8==0);
+  std::string ret;
+  for(int i=0;i<length;i++)
+    ret += bases.at(rand()%bases.size());
+  return ret;
+}
+
+
+
+struct Batch {
+  std::string unpacked_data;
+  std::vector<uint32_t> lengths;
+  std::vector<uint32_t> offsets;
+  int size;
+};
+
+struct GPUBatch {
+  thrust::device_vector<uint32_t> packed_data;
+  thrust::device_vector<uint32_t> lengths;
+  thrust::device_vector<uint32_t> offsets;
+  int size;
+};
+
+Batch RandomBatch(const int size){
+  Batch batch;
+  batch.size = size;
+  batch.offsets.push_back(0);
+  for(int i=0;i<size;i++){
+    const auto seq = RandomInput();
+    batch.unpacked_data += seq;
+    batch.lengths.push_back(seq.size());
+    batch.offsets.push_back(batch.offsets.back()+seq.size());
+  }
+  batch.offsets.pop_back();
+  return batch;
+}
+
+
+
+thrust::device_vector<uint32_t> pack_string_onto_device(const std::string &data){
+  CHECK(data.size()%8==0);
+
+  thrust::device_vector<char> unpacked(data.begin(), data.end());
+  thrust::device_vector<uint32_t> packed(data.size()/4/2); //Two characters squeezed into the space of one
+
+  const uint32_t BLOCKDIM = 128;
+  const uint32_t N_BLOCKS = 30;
+
+  pack_data<<<N_BLOCKS, BLOCKDIM>>>(
+    (uint32_t*)thrust::raw_pointer_cast(unpacked.data()),
+    thrust::raw_pointer_cast(packed.data()),
+    data.size()/4 //Four characters per uint32_t
+  );
+
+  const auto err = cudaGetLastError();
+  CHECK(err==cudaSuccess);
+
+  CHECKCUDAERROR(cudaDeviceSynchronize());
+
+  return packed;
+}
+
+
+
+GPUBatch gpuify_batch(const Batch &batch){
+  GPUBatch gbatch;
+  gbatch.packed_data = pack_string_onto_device(batch.unpacked_data);
+  gbatch.lengths = batch.lengths;
+  gbatch.offsets = batch.offsets;
+  gbatch.size    = batch.size;
+  return gbatch;
+}
+
+
+
+TEST_CASE("Packing"){
+  for(int i=0;i<100;i++){
+    const auto unpacked = RandomInput();
+    const auto packed = pack_string_onto_device(unpacked);
+
+    std::vector<uint32_t> host_packed(packed.size());
+
+    CHECKCUDAERROR(cudaMemcpy(host_packed.data(), thrust::raw_pointer_cast(packed.data()), packed.size()*sizeof(uint32_t), cudaMemcpyDeviceToHost));
+
+    std::string packed_result;
+    for(const auto &x: host_packed)
+      packed_result += Unloadword(x);
+
+    CHECK(unpacked==packed_result);
+  }
+}
+
+
+
+TEST_CASE("Complement"){
+  const auto do_op_on_batch = [](GPUBatch &gbatch, const char op){
+    const auto ops = thrust::device_vector<uint8_t>(gbatch.size, op);
+
+    const uint32_t BLOCKDIM = 128;
+    const uint32_t N_BLOCKS = 30;
+    new_reversecomplement_kernel<<<N_BLOCKS, BLOCKDIM>>>(
+      thrust::raw_pointer_cast(gbatch.packed_data.data()),
+      thrust::raw_pointer_cast(gbatch.lengths.data()),
+      thrust::raw_pointer_cast(gbatch.offsets.data()),
+      thrust::raw_pointer_cast(ops.data()),
+      gbatch.size
+    );
+
+    const auto err = cudaGetLastError();
+    CHECK(err==cudaSuccess);
+
+    CHECKCUDAERROR(cudaDeviceSynchronize());
+
+    std::vector<uint32_t> host_packed(gbatch.packed_data.size());
+    CHECKCUDAERROR(cudaMemcpy(host_packed.data(), thrust::raw_pointer_cast(gbatch.packed_data.data()), gbatch.packed_data.size()*sizeof(uint32_t), cudaMemcpyDeviceToHost));
+
+    std::string unpacked_result;
+    for(const auto &x: host_packed)
+      unpacked_result += Unloadword(x);
+    return unpacked_result;
+  };
+
+  // '>' = Forward, natural
+  for(int i=0;i<30;i++){
+    const auto batch = RandomBatch(200);
+    auto gbatch = gpuify_batch(batch);
+    const auto unpacked_result = do_op_on_batch(gbatch, '>');
+    CHECK(batch.unpacked_data==unpacked_result);
+  }
+
+  // '/' = Forward, complemented
+  for(int i=0;i<30;i++){
+    const auto batch = RandomBatch(200);
+    auto gbatch = gpuify_batch(batch);
+    const auto complemented = do_op_on_batch(gbatch, '/');
+    CHECK(batch.unpacked_data!=complemented);
+    //Check that we can undo the complement
+    const auto unpacked_result_undo = do_op_on_batch(gbatch, '/');
+    CHECK(batch.unpacked_data==unpacked_result_undo);
+    //Verify the complement by undoing the complement using simple methods
+    for(int i=0;i<complemented.size();i+=8){
+      const auto word_comp = Unloadword(complement_word(LoadWord(complemented.substr(i,8))));
+      CHECK(word_comp==batch.unpacked_data.substr(i,8));
+    }
+  }
+
+  // * - '<' = Reverse, natural
+  //TODO: Enable this code after fixing up the reversal kernel
+/*  for(int i=0;i<30;i++){
+    const auto batch = RandomBatch(200);
+    auto gbatch = gpuify_batch(batch);
+    auto reversed = do_op_on_batch(gbatch, '<');
+    CHECK(batch.unpacked_data!=reversed);
+    //Check that we can undo the reverse
+    const auto unpacked_result_undo = do_op_on_batch(gbatch, '/');
+    CHECK(batch.unpacked_data==unpacked_result_undo);
+    //Verify the reverse by undoing the reverse using simple methods
+    for(int i=0;i<batch.size;i++){
+      auto original_sub = batch.unpacked_data.substr(batch.offsets[i], batch.lengths[i]);
+      const auto reversed_sub = reversed.substr(batch.offsets[i], batch.lengths[i]);
+
+      int n_count = 0;
+      for(auto i=original_sub.rbegin();i!=original_sub.rend() && *i=='N';i++,n_count++){}
+
+      // std::cerr<<original_sub<<"\n"<<reversed_sub<<"\n\n";
+      std::reverse(original_sub.begin(), original_sub.end()-n_count);
+      CHECK(original_sub==reversed_sub);
+    }*/
+
+  //TODO: Add tests
+  // '+' = Reverse, complemented
+
+
+}
+
+
 
 
 

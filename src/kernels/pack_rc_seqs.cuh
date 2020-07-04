@@ -29,5 +29,5 @@ __global__ void	new_reversecomplement_kernel(
   const uint32_t *const batch_lengths,
   const uint32_t *const batch_offsets,
   const uint8_t  *const op,
-  const uint32_t        n_tasks
+  const uint32_t        batch_size
 );
