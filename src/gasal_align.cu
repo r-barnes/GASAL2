@@ -543,21 +543,23 @@ void gasal_aln_async(
 }
 
 
-int gasal_is_aln_async_done(gasal_gpu_storage_t &gpu_storage){
-	cudaError_t err;
-	if(gpu_storage.is_free == 1) return -2;//if no work is launced in this stream, return -2
-	err = cudaStreamQuery(gpu_storage.str);//check to see if the stream is finished
-	if (err != cudaSuccess ) {
-		if (err == cudaErrorNotReady) return -1;
-		else{
-			fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(err), err,  __LINE__, __FILE__);
-			exit(EXIT_FAILURE);
-		}
-	}
-	gasal_host_batch_reset(gpu_storage);
-	gpu_storage.is_free = 1;
-	gpu_storage.current_n_alns = 0;
-	return 0;
+AlignmentStatus gasal_is_aln_async_done(gasal_gpu_storage_t &gpu_storage){
+  if(gpu_storage.is_free == 1)
+    return AlignmentStatus::StreamFree;
+
+	//Check to see if the stream is finished
+  const cudaError_t err = cudaStreamQuery(gpu_storage.str);
+  if(err==cudaErrorNotReady){
+    return AlignmentStatus::NotReady;
+  } else if(err!=cudaSuccess) {
+    fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(err), err,  __LINE__, __FILE__);
+    exit(EXIT_FAILURE);
+  }
+
+  gasal_host_batch_reset(gpu_storage);
+  gpu_storage.is_free = 1;
+  gpu_storage.current_n_alns = 0;
+  return AlignmentStatus::Finished;
 }
 
 

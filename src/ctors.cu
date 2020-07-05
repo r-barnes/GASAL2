@@ -30,8 +30,8 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		this_gpu_storage.host_query_op.resize(host_max_n_alns);
 		this_gpu_storage.host_target_op.resize(host_max_n_alns);
 		uint8_t *no_ops = (uint8_t*) calloc(host_max_n_alns * sizeof(uint8_t), sizeof(uint8_t)); //TODO: Is this right, or is too much space?
-		gasal_op_fill(this_gpu_storage, no_ops, host_max_n_alns, DataSource::QUERY);
-		gasal_op_fill(this_gpu_storage, no_ops, host_max_n_alns, DataSource::TARGET);
+		gasal_op_fill(this_gpu_storage.host_query_op, no_ops, host_max_n_alns);
+		gasal_op_fill(this_gpu_storage.host_target_op, no_ops, host_max_n_alns);
 		free(no_ops);
 
 		this_gpu_storage.query_op.resize(gpu_max_n_alns);

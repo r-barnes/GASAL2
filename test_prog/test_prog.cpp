@@ -39,10 +39,11 @@ void per_thread_processing(
   std::vector<gasal_gpu_storage_v> &gpu_storage_vecs
 ){
   const auto thread_id = omp_get_thread_num();
-  const auto n_seqs = thread_n_seqs[thread_id];//number of sequences allocated to this thread
   auto curr_idx = thread_seqs_idx[thread_id];//number of sequences allocated to this thread
   int seqs_done = 0;
-  int n_batchs_done = 0;
+
+  if (thread_n_seqs.at(thread_id)<=0)
+    return;
 
   struct gpu_batch{ //a struct to hold data structures of a stream
       gasal_gpu_storage_t *gpu_storage; //the struct that holds the GASAL2 data structures
@@ -63,34 +64,32 @@ void per_thread_processing(
     gpu_batch_arr[z].gpu_storage = &(gpu_storage_vecs[thread_id].at(z));
   }
 
-  if (n_seqs<=0)
-    return;
-
-  while (n_batchs_done < thread_n_batchs[thread_id]) { // Loop on streams
+  int n_batchs_done = 0;
+  while (n_batchs_done < thread_n_batchs.at(thread_id)) { // Loop on streams
     int gpu_batch_arr_idx = 0;
     //------------checking the availability of a "free" stream"-----------------
     while(gpu_batch_arr_idx < gpu_storage_vecs[thread_id].size() && (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->is_free != 1) {
       gpu_batch_arr_idx++;
     }
 
-    if (seqs_done < n_seqs && gpu_batch_arr_idx < gpu_storage_vecs[thread_id].size()) {
+    auto &this_batch = gpu_batch_arr[gpu_batch_arr_idx];
+    auto &this_storage = *gpu_batch_arr[gpu_batch_arr_idx].gpu_storage;
+
+    if (seqs_done < thread_n_seqs.at(thread_id) && gpu_batch_arr_idx < gpu_storage_vecs[thread_id].size()) {
       uint32_t query_batch_idx = 0;
       uint32_t target_batch_idx = 0;
       unsigned int j = 0;
       //-----------Create a batch of sequences to be aligned on the GPU. The batch contains (target_seqs.size() / NB_STREAMS) number of sequences-----------------------
 
-      for (int i = curr_idx; seqs_done < n_seqs && j < (STREAM_BATCH_SIZE); i++, j++, seqs_done++)
-      {
+      for (int i = curr_idx; seqs_done < thread_n_seqs.at(thread_id) && j < (STREAM_BATCH_SIZE); i++, j++, seqs_done++){
+        this_storage.current_n_alns++ ;
 
-        gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns++ ;
-
-        if(gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns > gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->host_max_n_alns)
-        {
-          gasal_host_alns_resize(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->host_max_n_alns * 2, args);
+        if(this_storage.current_n_alns > this_storage.host_max_n_alns){
+          gasal_host_alns_resize(this_storage, this_storage.host_max_n_alns * 2, args);
         }
 
-        (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j] = query_batch_idx;
-        (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_target_batch_offsets[j] = target_batch_idx;
+        this_storage.host_query_batch_offsets[j] = query_batch_idx;
+        this_storage.host_target_batch_offsets[j] = target_batch_idx;
 
         /*
           All the filling is moved on the library size, to take care of the memory size and expansions (when needed).
@@ -99,20 +98,20 @@ void per_thread_processing(
           The way the host memory is filled changes the current _idx (it's increased by size, and by the padding). That's why it's returned by the function.
         */
 
-        query_batch_idx = gasal_host_batch_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+        query_batch_idx = gasal_host_batch_fill(this_storage,
                 query_batch_idx,
                 input_data.first.sequences.at(i).c_str(),
                 input_data.first.sequences.at(i).size(),
                 DataSource::QUERY);
 
-        target_batch_idx = gasal_host_batch_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
+        target_batch_idx = gasal_host_batch_fill(this_storage,
                 target_batch_idx,
                 input_data.second.sequences.at(i).c_str(),
                 input_data.second.sequences.at(i).size(),
                 DataSource::TARGET);
 
-        (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_lens[j] = input_data.first.sequences.at(i).size();
-        (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_target_batch_lens[j] = input_data.second.sequences.at(i).size();
+        this_storage.host_query_batch_lens[j] = input_data.first.sequences.at(i).size();
+        this_storage.host_target_batch_lens[j] = input_data.second.sequences.at(i).size();
       }
 
       #ifdef DEBUG
@@ -121,8 +120,8 @@ void per_thread_processing(
       #endif
 
       // Here, we fill the operations arrays for the current batch to be processed by the stream
-      gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, DataSource::QUERY);
-      gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, DataSource::TARGET);
+      gasal_op_fill(this_storage.host_query_op, input_data.first.modifiers.data() + seqs_done - j, j);
+      gasal_op_fill(this_storage.host_target_op, input_data.second.modifiers.data() + seqs_done - j, j);
 
       gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch = j;
       uint32_t query_batch_bytes = query_batch_idx;
@@ -133,8 +132,8 @@ void per_thread_processing(
       //----------------------------------------------------------------------------------------------------
       //-----------------calling the GASAL2 non-blocking alignment function---------------------------------
 
-      gasal_aln_async(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, args);
-      gpu_batch_arr[gpu_batch_arr_idx].gpu_storage->current_n_alns = 0;
+      gasal_aln_async(this_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, args);
+      this_storage.current_n_alns = 0;
       //---------------------------------------------------------------------------------
     }
 
@@ -142,50 +141,51 @@ void per_thread_processing(
     //-------------------------------print alignment results----------------------------------------
 
     //loop through all the streams and print the results of the finished streams.
-    for (size_t gpu_batch_arr_idx=0; gpu_batch_arr_idx < gpu_storage_vecs[thread_id].size(); gpu_batch_arr_idx++) {
-      if (gasal_is_aln_async_done(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage) == 0) {
+    for (size_t gpu_batch_arr_idx2=0; gpu_batch_arr_idx2 < gpu_storage_vecs[thread_id].size(); gpu_batch_arr_idx2++) {
+      auto &this_storage = *gpu_batch_arr[gpu_batch_arr_idx2].gpu_storage;
+      if (gasal_is_aln_async_done(this_storage) == AlignmentStatus::Finished) {
         int j = 0;
         if(!args.print_out)
           continue;
 
         #pragma omp critical
-        for (int i = gpu_batch_arr[gpu_batch_arr_idx].batch_start; j < gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch; i++, j++) {
+        for (int i = gpu_batch_arr[gpu_batch_arr_idx2].batch_start; j < gpu_batch_arr[gpu_batch_arr_idx2].n_seqs_batch; i++, j++) {
           std::cout << "query_name="    << input_data.first.headers.at(i);
           std::cout << "\ttarget_name=" << input_data.second.headers.at(i);
-          std::cout << "\tscore=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->aln_score[j];
+          std::cout << "\tscore=" << this_storage.host_res->aln_score[j];
 
           if ((args.start_pos == CompStart::WITH_START || args.start_pos == CompStart::WITH_TB)
             && ((args.algo == algo_type::SEMI_GLOBAL && (args.semiglobal_skipping_head != DataSource::NONE || args.semiglobal_skipping_head != DataSource::NONE))
               || args.algo > algo_type::SEMI_GLOBAL))
           {
-            std::cout << "\tquery_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_start[j];
-            std::cout << "\ttarget_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_start[j];
+            std::cout << "\tquery_batch_start=" << this_storage.host_res->query_batch_start[j];
+            std::cout << "\ttarget_batch_start=" << this_storage.host_res->target_batch_start[j];
           }
 
           if (args.algo != algo_type::GLOBAL){
-            std::cout << "\tquery_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_end[j];
-            std::cout << "\ttarget_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_end[j] ;
+            std::cout << "\tquery_batch_end="  << this_storage.host_res->query_batch_end[j];
+            std::cout << "\ttarget_batch_end=" << this_storage.host_res->target_batch_end[j] ;
           }
 
           if (args.secondBest==Bool::TRUE){
-            std::cout << "\t2nd_score=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->aln_score[j] ;
-            std::cout << "\t2nd_query_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->query_batch_end[j];
-            std::cout << "\t2nd_target_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->target_batch_end[j] ;
+            std::cout << "\t2nd_score=" << this_storage.host_res_second->aln_score[j] ;
+            std::cout << "\t2nd_query_batch_end="  << this_storage.host_res_second->query_batch_end[j];
+            std::cout << "\t2nd_target_batch_end=" << this_storage.host_res_second->target_batch_end[j] ;
           }
 
           if (args.start_pos == CompStart::WITH_TB){
             std::cout << "\tCIGAR=";
-            const int offset = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j];
-            const int n_cigar_ops = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->n_cigar_ops[j];
-            int last_op = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + n_cigar_ops - 1]) & 3;
-            int count = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + n_cigar_ops - 1]) >> 2;
+            const int offset = this_storage.host_query_batch_offsets[j];
+            const int n_cigar_ops = this_storage.host_res->n_cigar_ops[j];
+            int last_op = (this_storage.host_res->cigar[offset + n_cigar_ops - 1]) & 3;
+            int count = (this_storage.host_res->cigar[offset + n_cigar_ops - 1]) >> 2;
             for (int u = n_cigar_ops - 2; u >= 0 ; u--){
-              int curr_op = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + u]) & 3;
+              int curr_op = (this_storage.host_res->cigar[offset + u]) & 3;
               if (curr_op == last_op) {
-                count += ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + u]) >> 2;
+                count += (this_storage.host_res->cigar[offset + u]) >> 2;
               } else {
                 std::cout << count << op_to_letter(last_op);
-                count = ((gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->cigar[offset + u]) >> 2;
+                count = (this_storage.host_res->cigar[offset + u]) >> 2;
               }
               last_op = curr_op;
             }
