@@ -1,28 +1,5 @@
 #pragma once
 
-// Template-meta-programming types construction from Int values
-// This allows to cut down kernel code at compilation time.
-
-template <int Val>
-struct Int2Type
-{
-	typedef enum {val_ = Val} val__;
-};
-
-template<typename X, typename Y>
-struct SameType
-{
-   enum { result = 0 };
-};
-
-template<typename T>
-struct SameType<T, T>
-{
-   enum { result = 1 };
-};
-
-#define SAMETYPE(a, b) (std::is_same<a,b>::value)
-
 __constant__ int32_t _cudaGapO;          // gap open penalty
 __constant__ int32_t _cudaGapOE;         // sum of gap open and extension penalties
 __constant__ int32_t _cudaGapExtend;     // sum of gap extend
