@@ -18,6 +18,14 @@ const size_t NB_STREAMS = 2;
 
 #define DEBUG
 
+//A struct to hold data structures of a stream
+struct gpu_batch{
+  gasal_gpu_storage_t *gpu_storage; //the struct that holds the GASAL2 data structures
+  int n_seqs_batch;                 //number of sequences in the batch (<= (target_seqs.size() / NB_STREAMS))
+  int batch_start;                  //starting index of batch
+};
+
+
 
 char op_to_letter(const int op){
   switch (op) {
@@ -26,6 +34,61 @@ char op_to_letter(const int op){
     case 2: return 'D';
     case 3: return 'I';
     default: return 'E';
+  }
+}
+
+
+
+void print_batch(
+  const FastaPair &input_data,
+  const gpu_batch &batch,
+  const Parameters &args
+){
+  auto &batch_storage = *batch.gpu_storage;
+  #pragma omp critical
+  for (int j=0, i = batch.batch_start; j < batch.n_seqs_batch; i++, j++) {
+    std::cout << "query_name="    << input_data.first.headers.at(i);
+    std::cout << "\ttarget_name=" << input_data.second.headers.at(i);
+    std::cout << "\tscore=" << batch_storage.host_res->aln_score[j];
+
+    if ((args.start_pos == CompStart::WITH_START || args.start_pos == CompStart::WITH_TB)
+      && ((args.algo == algo_type::SEMI_GLOBAL && (args.semiglobal_skipping_head != DataSource::NONE || args.semiglobal_skipping_head != DataSource::NONE))
+        || args.algo > algo_type::SEMI_GLOBAL))
+    {
+      std::cout << "\tquery_batch_start=" << batch_storage.host_res->query_batch_start[j];
+      std::cout << "\ttarget_batch_start=" << batch_storage.host_res->target_batch_start[j];
+    }
+
+    if (args.algo != algo_type::GLOBAL){
+      std::cout << "\tquery_batch_end="  << batch_storage.host_res->query_batch_end[j];
+      std::cout << "\ttarget_batch_end=" << batch_storage.host_res->target_batch_end[j] ;
+    }
+
+    if (args.secondBest==Bool::TRUE){
+      std::cout << "\t2nd_score=" << batch_storage.host_res_second->aln_score[j] ;
+      std::cout << "\t2nd_query_batch_end="  << batch_storage.host_res_second->query_batch_end[j];
+      std::cout << "\t2nd_target_batch_end=" << batch_storage.host_res_second->target_batch_end[j] ;
+    }
+
+    if (args.start_pos == CompStart::WITH_TB){
+      std::cout << "\tCIGAR=";
+      const int offset = batch_storage.host_query_batch_offsets[j];
+      const int n_cigar_ops = batch_storage.host_res->n_cigar_ops[j];
+      int last_op = (batch_storage.host_res->cigar[offset + n_cigar_ops - 1]) & 3;
+      int count = (batch_storage.host_res->cigar[offset + n_cigar_ops - 1]) >> 2;
+      for (int u = n_cigar_ops - 2; u >= 0 ; u--){
+        int curr_op = (batch_storage.host_res->cigar[offset + u]) & 3;
+        if (curr_op == last_op) {
+          count += (batch_storage.host_res->cigar[offset + u]) >> 2;
+        } else {
+          std::cout << count << op_to_letter(last_op);
+          count = (batch_storage.host_res->cigar[offset + u]) >> 2;
+        }
+        last_op = curr_op;
+      }
+      std::cout << count << op_to_letter(last_op);
+    }
+    std::cout << std::endl;
   }
 }
 
@@ -44,12 +107,6 @@ void per_thread_processing(
 
   if (thread_n_seqs.at(thread_id)<=0)
     return;
-
-  struct gpu_batch{ //a struct to hold data structures of a stream
-      gasal_gpu_storage_t *gpu_storage; //the struct that holds the GASAL2 data structures
-      int n_seqs_batch;//number of sequences in the batch (<= (target_seqs.size() / NB_STREAMS))
-      int batch_start;//starting index of batch
-  };
 
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: ";
@@ -129,78 +186,21 @@ void per_thread_processing(
       gpu_batch_arr[gpu_batch_arr_idx].batch_start = curr_idx;
       curr_idx += (STREAM_BATCH_SIZE);
 
-      //----------------------------------------------------------------------------------------------------
-      //-----------------calling the GASAL2 non-blocking alignment function---------------------------------
-
       gasal_aln_async(this_storage, query_batch_bytes, target_batch_bytes, gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch, args);
       this_storage.current_n_alns = 0;
-      //---------------------------------------------------------------------------------
     }
 
-
-    //-------------------------------print alignment results----------------------------------------
-
-    //loop through all the streams and print the results of the finished streams.
-    for (size_t gpu_batch_arr_idx2=0; gpu_batch_arr_idx2 < gpu_storage_vecs[thread_id].size(); gpu_batch_arr_idx2++) {
-      auto &this_storage = *gpu_batch_arr[gpu_batch_arr_idx2].gpu_storage;
-      if (gasal_is_aln_async_done(this_storage) == AlignmentStatus::Finished) {
-        int j = 0;
-        if(!args.print_out)
-          continue;
-
-        #pragma omp critical
-        for (int i = gpu_batch_arr[gpu_batch_arr_idx2].batch_start; j < gpu_batch_arr[gpu_batch_arr_idx2].n_seqs_batch; i++, j++) {
-          std::cout << "query_name="    << input_data.first.headers.at(i);
-          std::cout << "\ttarget_name=" << input_data.second.headers.at(i);
-          std::cout << "\tscore=" << this_storage.host_res->aln_score[j];
-
-          if ((args.start_pos == CompStart::WITH_START || args.start_pos == CompStart::WITH_TB)
-            && ((args.algo == algo_type::SEMI_GLOBAL && (args.semiglobal_skipping_head != DataSource::NONE || args.semiglobal_skipping_head != DataSource::NONE))
-              || args.algo > algo_type::SEMI_GLOBAL))
-          {
-            std::cout << "\tquery_batch_start=" << this_storage.host_res->query_batch_start[j];
-            std::cout << "\ttarget_batch_start=" << this_storage.host_res->target_batch_start[j];
-          }
-
-          if (args.algo != algo_type::GLOBAL){
-            std::cout << "\tquery_batch_end="  << this_storage.host_res->query_batch_end[j];
-            std::cout << "\ttarget_batch_end=" << this_storage.host_res->target_batch_end[j] ;
-          }
-
-          if (args.secondBest==Bool::TRUE){
-            std::cout << "\t2nd_score=" << this_storage.host_res_second->aln_score[j] ;
-            std::cout << "\t2nd_query_batch_end="  << this_storage.host_res_second->query_batch_end[j];
-            std::cout << "\t2nd_target_batch_end=" << this_storage.host_res_second->target_batch_end[j] ;
-          }
-
-          if (args.start_pos == CompStart::WITH_TB){
-            std::cout << "\tCIGAR=";
-            const int offset = this_storage.host_query_batch_offsets[j];
-            const int n_cigar_ops = this_storage.host_res->n_cigar_ops[j];
-            int last_op = (this_storage.host_res->cigar[offset + n_cigar_ops - 1]) & 3;
-            int count = (this_storage.host_res->cigar[offset + n_cigar_ops - 1]) >> 2;
-            for (int u = n_cigar_ops - 2; u >= 0 ; u--){
-              int curr_op = (this_storage.host_res->cigar[offset + u]) & 3;
-              if (curr_op == last_op) {
-                count += (this_storage.host_res->cigar[offset + u]) >> 2;
-              } else {
-                std::cout << count << op_to_letter(last_op);
-                count = (this_storage.host_res->cigar[offset + u]) >> 2;
-              }
-              last_op = curr_op;
-            }
-            std::cout << count << op_to_letter(last_op);
-          }
-          std::cout << std::endl;
-        }
-        n_batchs_done++;
+    //Find and print completed streams
+    for (size_t i=0; i < gpu_storage_vecs[thread_id].size(); i++) {
+      if (gasal_is_aln_async_done(*gpu_batch_arr[i].gpu_storage) != AlignmentStatus::Finished)
+        continue;
+      if(args.print_out){
+        print_batch(input_data, gpu_batch_arr[i], args);
       }
+      n_batchs_done++;
     }
   }
 }
-
-
-
 
 
 
