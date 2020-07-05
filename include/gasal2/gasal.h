@@ -51,7 +51,6 @@ enum class algo_type {
 	GLOBAL,
 	SEMI_GLOBAL,
 	LOCAL,
-	MICROLOCAL,
 	BANDED,
 	KSW
 };
@@ -133,7 +132,7 @@ struct gasal_gpu_storage_t {
 	uint32_t current_n_alns;
 
 	uint64_t packed_tb_matrix_size;
-	uint4 *packed_tb_matrices = nullptr;
+	thrust::device_vector<uint4> packed_tb_matrices;
 
 	cudaStream_t str;
 	int is_free;

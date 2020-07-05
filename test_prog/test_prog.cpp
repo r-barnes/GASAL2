@@ -1,15 +1,13 @@
 #include <gasal2/gasal_header.h>
 #include <gasal2/read_fasta.h>
-
-#include <iostream>
-#include <math.h>
-#include <omp.h>
-#include <string.h>
-#include <unistd.h>
-#include <vector>
 #include <gasal2/Timer.h>
 
-#define NB_STREAMS 2
+#include <cmath>
+#include <iostream>
+#include <omp.h>
+#include <vector>
+
+const size_t NB_STREAMS = 2;
 
 //#define STREAM_BATCH_SIZE (262144)
 // this gives each stream HALF of the sequences.
@@ -20,115 +18,16 @@
 
 #define DEBUG
 
-#define MAX(a,b) (a>b ? a : b)
-
-//#define GPU_SELECT 0
 
 
-int main(int argc, char **argv) {
-  //gasal_set_device(GPU_SELECT);
-
-  Parameters args(argc, argv);
-  args.parse();
-  args.print();
-
-  //--------------copy substitution scores to GPU--------------------
-  gasal_subst_scores sub_scores;
-  sub_scores.match      = args.match_score;
-  sub_scores.mismatch   = args.mismatch_score;
-  sub_scores.gap_open   = args.gap_open_score;
-  sub_scores.gap_extend = args.gap_ext_score;
-
-  gasal_copy_subst_scores(sub_scores);
-
-  //Read input data
-  const auto input_data = ReadFastaQueryTargetPair(
-    args.query_batch_fasta_filename,
-    args.target_batch_fasta_filename
-  );
-
-  const auto maximum_sequence_length = std::max(input_data.first.maximum_sequence_length, input_data.second.maximum_sequence_length);
-  const auto total_seqs = input_data.first.headers.size();
-
-  #ifdef DEBUG
-    std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "Size of read batches are: query=" << input_data.first.total_sequence_bytes << ", target=" << input_data.second.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
-  #endif
-
-  auto *const target_seq_id  = new uint32_t[total_seqs];
-  auto *const query_seq_id   = new uint32_t[total_seqs];
-  for (size_t i = 0; i < total_seqs; i++){
-    query_seq_id[i] = i;
-    target_seq_id[i] = i;
-  }
-
-  #ifdef DEBUG
-    std::cerr << "[TEST_PROG DEBUG]: query, mod@id=";
-    for (size_t i = 0; i < total_seqs; i++){
-      if (input_data.first.modifiers.at(i) > 0)
-        std::cerr << +(input_data.first.modifiers.at(i)) << "@" << query_seq_id[i] << "| ";
-    }
-    std::cerr << std::endl;
-  #endif
-
-  std::vector<int> thread_seqs_idx;
-  std::vector<int> thread_n_seqs;
-  std::vector<int> thread_n_batchs;
-
-  size_t thread_batch_size = (int)ceil((double)total_seqs/args.n_threads);
-  size_t n_seqs_alloc = 0;
-  for (int i = 0; i < args.n_threads; i++){//distribute the sequences among the threads equally
-    thread_seqs_idx.push_back(n_seqs_alloc);
-    if (n_seqs_alloc + thread_batch_size < total_seqs){
-      thread_n_seqs.push_back(thread_batch_size);
-    } else {
-      thread_n_seqs.push_back(total_seqs - n_seqs_alloc);
-    }
-    thread_n_batchs.push_back( (int)ceil((double)thread_n_seqs[i]/(STREAM_BATCH_SIZE)) );
-    n_seqs_alloc += thread_n_seqs[i];
-  }
-
-  std::cerr << "Processing..." << std::endl;
-
-  Timer total_time;
-  total_time.start();
-  omp_set_num_threads(args.n_threads);
-  std::vector<gasal_gpu_storage_v> gpu_storage_vecs;
-  for (int z = 0; z < args.n_threads; z++) {
-    gpu_storage_vecs.emplace_back(NB_STREAMS);// creating NB_STREAMS streams per thread
-
-    /*
-      About memory sizes:
-      The required memory is the total size of the batch + its padding, divided by the number of streams.
-      The worst case would be that every sequence has to be padded with 7 'N', since they must have a length multiple of 8.
-      Even though the memory can be dynamically expanded both for Host and Device, it is advised to start with a memory large enough so that these expansions rarely occur (for better performance.)
-      Modifying the factor '1' in front of each size lets you see how GASAL2 expands the memory when needed.
-    */
-    /*
-    // For exemple, this is exactly the memory needed to allocate to fit all sequences is a single GPU BATCH.
-    gasal_init_streams(&(gpu_storage_vecs[z]),
-              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
-              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
-              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
-              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS))  ,
-              ceil((double)target_seqs.size() / (double)(NB_STREAMS)), // maximum number of alignments is bigger on target than on query side.
-              ceil((double)target_seqs.size() / (double)(NB_STREAMS)),
-              args);
-    */
-    //initializing the streams by allocating the required CPU and GPU memory
-    // note: the calculations of the detailed sizes to allocate could be done on the library side (to hide it from the user's perspective)
-    gasal_init_streams(gpu_storage_vecs[z], (input_data.first.maximum_sequence_length + 7),
-            (maximum_sequence_length + 7) ,
-             STREAM_BATCH_SIZE, //device
-             args);
-  }
-  #ifdef DEBUG
-    std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "size of host_unpack_query is " << (input_data.first.total_sequence_bytes +7*total_seqs) / (NB_STREAMS) << std::endl ;
-  #endif
-
-  #pragma omp parallel
-  {
+void per_thread_processing(
+  const FastaPair &input_data,
+  const Parameters &args,
+  const std::vector<int> &thread_seqs_idx,
+  const std::vector<int> &thread_n_seqs,
+  const std::vector<int> &thread_n_batchs,
+  std::vector<gasal_gpu_storage_v> &gpu_storage_vecs
+){
   int n_seqs = thread_n_seqs[omp_get_thread_num()];//number of sequences allocated to this thread
   int curr_idx = thread_seqs_idx[omp_get_thread_num()];//number of sequences allocated to this thread
   int seqs_done = 0;
@@ -308,9 +207,110 @@ int main(int argc, char **argv) {
       }
     }
   }
+}
 
 
+
+
+
+
+int main(int argc, char **argv) {
+  //gasal_set_device(GPU_SELECT);
+
+  Parameters args(argc, argv);
+  args.parse();
+  args.print();
+
+  //--------------copy substitution scores to GPU--------------------
+  gasal_subst_scores sub_scores;
+  sub_scores.match      = args.match_score;
+  sub_scores.mismatch   = args.mismatch_score;
+  sub_scores.gap_open   = args.gap_open_score;
+  sub_scores.gap_extend = args.gap_ext_score;
+
+  gasal_copy_subst_scores(sub_scores);
+
+  //Read input data
+  const auto input_data = ReadFastaQueryTargetPair(
+    args.query_batch_fasta_filename,
+    args.target_batch_fasta_filename
+  );
+
+  const auto maximum_sequence_length = std::max(input_data.first.maximum_sequence_length, input_data.second.maximum_sequence_length);
+  const auto total_seqs = input_data.first.headers.size();
+
+  #ifdef DEBUG
+    std::cerr << "[TEST_PROG DEBUG]: ";
+    std::cerr << "Size of read batches are: query=" << input_data.first.total_sequence_bytes << ", target=" << input_data.second.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
+  #endif
+
+  #ifdef DEBUG
+    std::cerr << "[TEST_PROG DEBUG]: query, mod@id=";
+    for (size_t i = 0; i < total_seqs; i++){
+      if (input_data.first.modifiers.at(i) > 0)
+        std::cerr << +(input_data.first.modifiers.at(i)) << "@" << i << "| ";
+    }
+    std::cerr << std::endl;
+  #endif
+
+  std::vector<int> thread_seqs_idx;
+  std::vector<int> thread_n_seqs;
+  std::vector<int> thread_n_batchs;
+
+  const size_t thread_batch_size = (int)std::ceil((double)total_seqs/args.n_threads);
+  size_t n_seqs_alloc = 0;
+  for (int i = 0; i < args.n_threads; i++){//distribute the sequences among the threads equally
+    thread_seqs_idx.push_back(n_seqs_alloc);
+    if (n_seqs_alloc + thread_batch_size < total_seqs){
+      thread_n_seqs.push_back(thread_batch_size);
+    } else {
+      thread_n_seqs.push_back(total_seqs - n_seqs_alloc);
+    }
+    thread_n_batchs.push_back( (int)std::ceil((double)thread_n_seqs[i]/(STREAM_BATCH_SIZE)) );
+    n_seqs_alloc += thread_n_seqs[i];
   }
+
+  std::cerr << "Processing..." << std::endl;
+
+  Timer total_time;
+  total_time.start();
+  omp_set_num_threads(args.n_threads);
+  std::vector<gasal_gpu_storage_v> gpu_storage_vecs;
+  for (int z = 0; z < args.n_threads; z++) {
+    gpu_storage_vecs.emplace_back(NB_STREAMS);// creating NB_STREAMS streams per thread
+
+    /*
+      About memory sizes:
+      The required memory is the total size of the batch + its padding, divided by the number of streams.
+      The worst case would be that every sequence has to be padded with 7 'N', since they must have a length multiple of 8.
+      Even though the memory can be dynamically expanded both for Host and Device, it is advised to start with a memory large enough so that these expansions rarely occur (for better performance.)
+      Modifying the factor '1' in front of each size lets you see how GASAL2 expands the memory when needed.
+    */
+    /*
+    // For exemple, this is exactly the memory needed to allocate to fit all sequences is a single GPU BATCH.
+    gasal_init_streams(&(gpu_storage_vecs[z]),
+              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
+              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
+              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS)) ,
+              1 * ceil((double)(query_seqs_len +7*total_seqs) / (double)(NB_STREAMS))  ,
+              ceil((double)target_seqs.size() / (double)(NB_STREAMS)), // maximum number of alignments is bigger on target than on query side.
+              ceil((double)target_seqs.size() / (double)(NB_STREAMS)),
+              args);
+    */
+    //initializing the streams by allocating the required CPU and GPU memory
+    // note: the calculations of the detailed sizes to allocate could be done on the library side (to hide it from the user's perspective)
+    gasal_init_streams(gpu_storage_vecs[z], (input_data.first.maximum_sequence_length + 7),
+            (maximum_sequence_length + 7) ,
+             STREAM_BATCH_SIZE, //device
+             args);
+  }
+  #ifdef DEBUG
+    std::cerr << "[TEST_PROG DEBUG]: ";
+    std::cerr << "size of host_unpack_query is " << (input_data.first.total_sequence_bytes +7*total_seqs) / (NB_STREAMS) << std::endl ;
+  #endif
+
+  #pragma omp parallel
+  per_thread_processing(input_data, args, thread_seqs_idx, thread_n_seqs, thread_n_batchs, gpu_storage_vecs);
 
   for (int z = 0; z < args.n_threads; z++) {
     gasal_destroy_streams(gpu_storage_vecs[z], args);

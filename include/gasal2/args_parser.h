@@ -4,7 +4,7 @@
 
 #include <string>
 
-enum fail_type {
+enum class FailType {
     NOT_ENOUGH_ARGS,
     TOO_MANY_ARGS,
     WRONG_ARG,
@@ -16,7 +16,7 @@ class Parameters{
     public:
         Parameters(int argc, char** argv);
         void print();
-        void failure(fail_type f);
+        void failure(FailType f);
         void help();
         void parse();
 

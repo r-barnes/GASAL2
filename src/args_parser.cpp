@@ -34,16 +34,16 @@ void Parameters::print() {
     std::cerr <<  "query_batch_fasta_filename=" << query_batch_fasta_filename <<" , target_batch_fasta_filename=" << target_batch_fasta_filename << std::endl;
 }
 
-void Parameters::failure(fail_type f) {
+void Parameters::failure(FailType f) {
     switch(f)
     {
-            case NOT_ENOUGH_ARGS:
+            case FailType::NOT_ENOUGH_ARGS:
                 std::cerr << "Not enough Parameters. Required: -y AL_TYPE file1.fasta file2.fasta. See help (--help, -h) for usage. " << std::endl;
             break;
-            case WRONG_ARG:
+            case FailType::WRONG_ARG:
                 std::cerr << "Wrong argument. See help (--help, -h) for usage. " << std::endl;
             break;
-            case WRONG_FILES:
+            case FailType::WRONG_FILES:
                 std::cerr << "File error: either a file doesn't exist, or cannot be opened." << std::endl;
             break;
 
@@ -93,7 +93,7 @@ void Parameters::parse() {
 
     if (argc < 4)
     {
-        failure(NOT_ENOUGH_ARGS);
+        failure(FailType::NOT_ENOUGH_ARGS);
     }
 
     for (c = 1; c < argc - 2; c++)
@@ -114,7 +114,7 @@ void Parameters::parse() {
         } else if (arg_cur.at(0) == '-' )
         {
             if (arg_cur.length() > 2)
-                failure(WRONG_ARG);
+                failure(FailType::WRONG_ARG);
             char param = arg_cur.at(1);
             switch(param)
             {
@@ -184,7 +184,7 @@ void Parameters::parse() {
                         semiglobal_skipping_head = DataSource::BOTH;
                     else
                     {
-                        failure(WRONG_ARG);
+                        failure(FailType::WRONG_ARG);
                     }
 
                     c++;
@@ -199,7 +199,7 @@ void Parameters::parse() {
                         semiglobal_skipping_tail = DataSource::BOTH;
                     else
                     {
-                        failure(WRONG_ARG);
+                        failure(FailType::WRONG_ARG);
                     }
                 break;
 
@@ -207,7 +207,7 @@ void Parameters::parse() {
 
 
         } else {
-            failure(WRONG_ARG);
+            failure(FailType::WRONG_ARG);
         }
     }
 

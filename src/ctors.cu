@@ -80,8 +80,8 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		}
 
 		if (params.start_pos == CompStart::WITH_TB) {
-			this_gpu_storage.packed_tb_matrix_size = ((uint32_t)ceil(((double)((uint64_t)max_query_len_8*(uint64_t)max_target_len_8))/32)) * gpu_max_n_alns;
-			CHECKCUDAERROR(cudaMalloc(&(this_gpu_storage.packed_tb_matrices), this_gpu_storage.packed_tb_matrix_size * sizeof(uint4)));
+			const auto packed_tb_matrix_size = ((uint32_t)ceil(((double)((uint64_t)max_query_len_8*(uint64_t)max_target_len_8))/32)) * gpu_max_n_alns;
+			this_gpu_storage.packed_tb_matrices.resize(packed_tb_matrix_size);
 		}
 
 		CHECKCUDAERROR(cudaStreamCreate(&(this_gpu_storage.str)));
@@ -112,13 +112,10 @@ void gasal_destroy_streams(gasal_gpu_storage_v &gpu_storage_vec, const Parameter
 
 		if (!(params.algo == algo_type::KSW))
 		{
-			if (this_gpu_storage.seed_scores)      CHECKCUDAERROR(cudaFree(this_gpu_storage.seed_scores));
+			if (this_gpu_storage.seed_scores)       CHECKCUDAERROR(cudaFree(this_gpu_storage.seed_scores));
 		}
 
-		if (this_gpu_storage.host_res->cigar)           CHECKCUDAERROR(cudaFreeHost(this_gpu_storage.host_res->cigar));
-
-		if (this_gpu_storage.packed_tb_matrices)   CHECKCUDAERROR(cudaFree(this_gpu_storage.packed_tb_matrices));
-
-		if (this_gpu_storage.str) CHECKCUDAERROR(cudaStreamDestroy(this_gpu_storage.str));
+		if (this_gpu_storage.host_res->cigar)     CHECKCUDAERROR(cudaFreeHost(this_gpu_storage.host_res->cigar));
+		if (this_gpu_storage.str)                 CHECKCUDAERROR(cudaStreamDestroy(this_gpu_storage.str));
 	}
 }

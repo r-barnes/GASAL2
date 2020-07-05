@@ -27,7 +27,7 @@
       thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),                 \
       gpu_storage.device_res,                                                            \
       gpu_storage.device_res_second,                                                     \
-      gpu_storage.packed_tb_matrices,                                                    \
+      thrust::raw_pointer_cast(gpu_storage.packed_tb_matrices.data()),                   \
       actual_n_alns                                                                      \
     );                                                                                   \
     break;                                                                               \
@@ -63,7 +63,7 @@
 
 #define SWITCH_LOCAL(a,s,h,t,b)                                                      \
   case s: {                                                                          \
-    gasal_local_kernel<algo_type::LOCAL, s, b><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>( \
+    gasal_local_kernel<s, b><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(            \
       thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),               \
       thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),              \
       thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),                 \
@@ -72,7 +72,7 @@
       thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),             \
       gpu_storage.device_res,                                                        \
       gpu_storage.device_res_second,                                                 \
-      gpu_storage.packed_tb_matrices,                                                \
+      thrust::raw_pointer_cast(gpu_storage.packed_tb_matrices.data()),               \
       actual_n_alns                                                                  \
     );                                                                               \
     if(s == CompStart::WITH_TB) {                                                    \
@@ -90,7 +90,7 @@
         thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),               \
         thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),              \
         thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),            \
-        gpu_storage.packed_tb_matrices,                                              \
+        thrust::raw_pointer_cast(gpu_storage.packed_tb_matrices.data()),             \
         gpu_storage.device_res,                                                      \
         gpu_storage.current_n_alns                                                   \
       );                                                                             \
@@ -108,7 +108,7 @@
       thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),              \
       thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),             \
       gpu_storage.device_res,                                                        \
-      gpu_storage.packed_tb_matrices,                                                \
+      thrust::raw_pointer_cast(gpu_storage.packed_tb_matrices.data()),               \
       actual_n_alns                                                                  \
     );                                                                               \
     if(s == CompStart::WITH_TB) {                                                    \
@@ -127,7 +127,7 @@
         thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),               \
         thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),              \
         thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),            \
-        gpu_storage.packed_tb_matrices,                                              \
+        thrust::raw_pointer_cast(gpu_storage.packed_tb_matrices.data()),             \
         gpu_storage.device_res,                                                      \
         gpu_storage.current_n_alns                                                   \
       );                                                                             \

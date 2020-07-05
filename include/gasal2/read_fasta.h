@@ -11,6 +11,8 @@ struct FastaInput {
   size_t total_sequence_bytes    = 0;
 };
 
+typedef std::pair<FastaInput,FastaInput> FastaPair;
+
 FastaInput ReadFasta(const std::string &filename);
 
-std::pair<FastaInput,FastaInput> ReadFastaQueryTargetPair(const std::string &query, const std::string &target);
+FastaPair ReadFastaQueryTargetPair(const std::string &query, const std::string &target);

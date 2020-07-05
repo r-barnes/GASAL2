@@ -58,17 +58,15 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 	gpu_storage.device_cpy = gasal_res_new_device_cpy(new_max_alns, params);
 	gpu_storage.device_res = gasal_res_new_device(gpu_storage.device_cpy);
 
-	if (params.secondBest==Bool::TRUE)
-	{
+	if (params.secondBest==Bool::TRUE){
 		gasal_res_destroy_host(gpu_storage.host_res_second);
 		gpu_storage.host_res_second = gasal_res_new_host(new_max_alns, params);
 		gpu_storage.device_cpy_second = gasal_res_new_device_cpy(new_max_alns, params);
 		gpu_storage.device_res_second = gasal_res_new_device(gpu_storage.device_cpy_second);
-
 	} else {
-		gpu_storage.host_res_second = NULL;
-		gpu_storage.device_cpy_second = NULL;
-		gpu_storage.device_res_second = NULL;
+		gpu_storage.host_res_second = nullptr;
+		gpu_storage.device_cpy_second = nullptr;
+		gpu_storage.device_res_second = nullptr;
 	}
 
 	//fprintf(stderr, "_res done ");
@@ -79,19 +77,14 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 }
 
 // operation (Reverse/complement) filler.
-void gasal_op_fill(gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, DataSource SRC){
-  uint8_t *host_op = nullptr;
-  switch(SRC){
-    case DataSource::QUERY:
-      host_op = gpu_storage.host_query_op.data();
-      break;
-    case DataSource::TARGET:
-      host_op = gpu_storage.host_target_op.data();
-      break;
-    default:
-      break;
-  }
-	memcpy(host_op, data, nbr_seqs_in_stream);
+void gasal_op_fill(gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, DataSource src){
+	if(src==DataSource::QUERY){
+		memcpy(gpu_storage.host_query_op.data(), data, nbr_seqs_in_stream);
+	} else if(src==DataSource::TARGET){
+		memcpy(gpu_storage.host_target_op.data(), data, nbr_seqs_in_stream);
+	} else {
+		throw std::runtime_error("Unknown data source!");
+	}
 }
 
 void gasal_set_device(int gpu_select, bool isPrintingProp)
@@ -123,5 +116,4 @@ void gasal_set_device(int gpu_select, bool isPrintingProp)
 		// silently select device
 		cudaSetDevice(gpu_select);
 	}
-
 }
