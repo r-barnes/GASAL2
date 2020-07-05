@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gasal2/args_parser.h>
+
 #include <thrust/device_vector.h>
 
 #include <cstdlib>

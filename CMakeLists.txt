@@ -30,11 +30,10 @@ add_library(gasal2
   src/interfaces.cpp
   src/read_fasta.cpp
   src/res.cpp
-
-  src/kernels/banded.cu
-  src/kernels/pack_rc_seqs.cu
 )
 target_include_directories(gasal2 PUBLIC include src)
+# set_target_properties(gasal2 PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+# set_target_properties(gasal2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 set(MAX_QUERY_LEN "1024" CACHE STRING "Maximum query length")
 set(N_CODE "0x4E" CACHE STRING "Code for non-based value N")

@@ -1,5 +1,8 @@
-#include "banded.cuh"
-#include <gasal2/gasal_kernels.h>
+#pragma once
+
+#include <gasal2/gasal.h>
+
+#include <cstdint>
 
 __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, int n_tasks, const int32_t k_band_width)
 {
@@ -74,8 +77,8 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 		uint32_t gpac =packed_target_batch[packed_target_batch_idx + i];//load 8 packed bases from target_batch sequence
 		gidx = i << 3;
 
-		ridx = MAX(0, i - k_other_band_width+1) << 3;
-		int32_t last_tile =  MIN( k_band_width + i, (int32_t)query_batch_regs);
+		ridx = max(0, i - k_other_band_width+1) << 3;
+		int32_t last_tile = min( k_band_width + i, (int32_t)query_batch_regs);
 		for (j = ridx >> 3  ; j < last_tile; j++) { //query_batch sequence in columns --- the beginning and end are defined with the tile-based band, to avoid unneccessary calculations.
 
 			uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 bases from query_batch sequence
@@ -93,7 +96,7 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 					#pragma unroll 8
 					for (l = 28, m = 1; m < 9; l -= 4, m++) {
 						uint32_t gbase = (gpac >> l) & 15;//get a base from target_batch sequence
-						DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);//check equality of rbase and gbase
+						subScore = DEV_GET_SUB_SCORE_LOCAL(rbase, gbase);//check equality of rbase and gbase
 						//int32_t curr_hm_diff = h[m] - _cudaGapOE;
 						f[m] = max(h[m]- _cudaGapOE, f[m] - _cudaGapExtend);//whether to introduce or extend a gap in query_batch sequence
 						h[m] = p[m] + subScore;//score if rbase is aligned to gbase

@@ -3,17 +3,23 @@
 #include <gasal2/gasal.h>
 
 template <algo_type T>
-__global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *cigar_offset, uint4 *packed_tb_matrices, gasal_res_t *device_res, int n_tasks) {
-
-	int i, j;
+__global__ void gasal_get_tb(
+	uint8_t     *cigar,
+	uint32_t    *query_batch_lens,
+	uint32_t    *target_batch_lens,
+	uint32_t    *cigar_offset,
+	uint4       *packed_tb_matrices,
+	gasal_res_t *device_res,
+	int n_tasks
+){
 	int total_score __attribute__((unused));
 	int curr_score __attribute__((unused));
-	const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+	const uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= n_tasks) return;
 
 	int offset = cigar_offset[tid];
 
-
+	int i, j;
 	if (T==algo_type::LOCAL) {
 		i = device_res->target_batch_end[tid];
 		j = device_res->query_batch_end[tid];
@@ -24,54 +30,32 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 		j = query_batch_lens[tid];
 	}
 
-
-
 	uint32_t prev_op_to_fill = 0;
-
 	int read_len_8 = query_batch_lens[tid]%8 ? query_batch_lens[tid] + (8 - (query_batch_lens[tid]%8)) : query_batch_lens[tid];
-
 	int n_ops = 0;
-
 	int prev_tile_no = -1;
-
 	uint4 tile = make_uint4(0, 0, 0, 0);
-
 	int op_select = 3;
-
 	int op_shift = 0;
-
-
 	int count = 0;
 
 	uint32_t op_to_fill;
 
-	while ( i >= 0 && j >= 0) {
-		int cell = (((i >> 3) * read_len_8) << 3) + (j << 3) + (i&7);
-
+	while(i >= 0 && j >= 0) {
+		const int cell = (((i >> 3) * read_len_8) << 3) + (j << 3) + (i&7);
 		int tile_no = cell>>5;
 
 		tile = tile_no != prev_tile_no ? packed_tb_matrices[(tile_no*n_tasks) + tid] : tile;
-
 		prev_tile_no = tile_no;
-
 		int cell_no_in_tile = cell - (tile_no<<5);
-
 		int reg_no_in_tile = cell_no_in_tile >> 3;
-
 		int cell_no_in_reg = cell_no_in_tile - (reg_no_in_tile << 3);
-
 		uint32_t reg = reg_no_in_tile == 0 ? tile.x : (reg_no_in_tile == 1 ? tile.y : (reg_no_in_tile == 2 ? tile.z : tile.w));
-
 		uint32_t cell_op = (reg >> (28 - (cell_no_in_reg << 2))) & 15;
-
 		uint32_t op = (cell_op >> op_shift) & op_select;
-
 		op_to_fill = op == 0 || op_select == 3 ? op : op_shift ;
-
 		op_select = op == 0 || (op == 1 && op_select == 3) ? 3 : 1;
-
 		op_shift = op == 0 || ( op == 1 && op_select == 3) ? 0 : ((op == 2 || op == 3) ?  op : op_shift);
-
 		if(count < 63  &&  op_to_fill == prev_op_to_fill) {
 			count++;
 		} else {
@@ -111,7 +95,6 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 			cigar[offset++] = reg_out;
 			n_ops++;
 			i = i - 63;
-
 		}
 		while (j >= 0) {
 			uint32_t reg_out = 0;
@@ -123,7 +106,6 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 			j = j - 63;
 		}
 	}
-
 
 	if (T==algo_type::LOCAL) {
 		device_res->target_batch_start[tid] = i;

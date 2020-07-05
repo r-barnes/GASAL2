@@ -4,7 +4,7 @@
 
 #define CORE_COMPUTE_SEMIGLOBAL() \
     uint32_t gbase = (gpac >> l) & 15; /* get a base from target_batch sequence */ \
-    DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);/* check equality of rbase and gbase */\
+    subScore = DEV_GET_SUB_SCORE_LOCAL(rbase, gbase);/* check equality of rbase and gbase */\
     register int32_t curr_hm_diff = h[m] - _cudaGapOE;\
     f[m] = max(curr_hm_diff, f[m] - _cudaGapExtend);/* whether to introduce or extend a gap in query_batch sequence */\
     curr_hm_diff = p[m] + subScore;/* score if rbase is aligned to gbase */\

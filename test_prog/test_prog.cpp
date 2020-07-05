@@ -93,6 +93,7 @@ void print_batch(
 }
 
 
+
 void per_thread_processing(
   const FastaPair &input_data,
   const Parameters &args,

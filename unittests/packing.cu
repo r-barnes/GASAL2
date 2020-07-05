@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include <kernels/pack_rc_seqs.cuh>
+#include <gasal2/gasal_align.h>
 
 #include <thrust/device_vector.h>
 
@@ -9,6 +9,26 @@
 #include <unordered_map>
 #include <vector>
 
+__global__ void pack_data(
+	const uint32_t *const unpacked,
+	uint32_t *const packed,
+	const uint64_t N
+);
+
+__global__ void	new_reversecomplement_kernel(
+  uint32_t       *const packed_batch,
+  const uint32_t *const batch_lengths,
+  const uint32_t *const batch_offsets,
+  const uint8_t  *const op,
+  const uint32_t        batch_size
+);
+
+__host__ __device__ uint32_t complement_word(const uint32_t packed_word);
+__host__ __device__ uint32_t reverse_word(uint32_t word);
+__host__ __device__ uint8_t count_word_trailing_n(uint32_t word);
+__global__ void test_score_match(bool *d_good);
+
+
 /*
 a=['A','G','C','T']
 import random
@@ -17,15 +37,6 @@ import random
 
 const std::unordered_map<int,char> trans{{1,'A'}, {3, 'C'}, {7, 'G'}, {4, 'T'}, {14, 'N'}, {0, '-'}};
 const std::string bases = "GCTAN";
-
-#define CHECKCUDAERROR(error) \
-    {\
-      const auto err=(error); \
-      if (err!=cudaSuccess) { \
-        fprintf(stderr, "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %s\n", cudaGetErrorString(err), err,  __LINE__, __FILE__); \
-      }\
-      REQUIRE_MESSAGE(err==cudaSuccess, cudaGetErrorString(err)); \
-    }
 
 
 
@@ -315,4 +326,23 @@ TEST_CASE("Trailing Ns"){
 
     CHECK_MESSAGE(cuda_trailing==trailing, input);
   }
+}
+
+
+
+TEST_CASE("Score matching"){
+  gasal_subst_scores sub_scores;
+  sub_scores.match      = 1;
+  sub_scores.mismatch   = 4;
+  sub_scores.gap_open   = 6;
+  sub_scores.gap_extend = 1;
+  gasal_copy_subst_scores(sub_scores);
+
+  bool h_good=false;
+  bool *d_good;
+  cudaMalloc(&d_good, sizeof(bool));
+  test_score_match<<<1,1>>>(d_good);
+  cudaMemcpy(&h_good, d_good, sizeof(bool), cudaMemcpyDeviceToHost);
+  cudaFree(d_good);
+  CHECK(h_good==true);
 }
