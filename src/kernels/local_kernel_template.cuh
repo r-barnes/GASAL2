@@ -52,7 +52,7 @@
     - B is for computing the Second Best Score. Its values are on enum FALSE(0)/TRUE(1).
     (sidenote: it's based on an enum instead of a bool in order to generalize its type from its Int value, with Int2Type meta-programming-template)
 */
-template <typename T, typename S, typename B>
+template <algo_type T, CompStart S, Bool B>
 __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, gasal_res_t *device_res_second, uint4 *packed_tb_matrices, int n_tasks)
 {
     const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;//thread ID
@@ -118,7 +118,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 			register uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 bases from query_batch sequence
 
             //--------------compute a tile of 8x8 cells-------------------
-			if (SAMETYPE(S, Int2Type<WITH_TB>)) {
+			if (S==CompStart::WITH_TB) {
 				uint4 direction = make_uint4(0, 0, 0, 0);
 				uint32_t rbase = (rpac >> 28) & 15;//get a base from query_batch sequence
 				HD = global[ridx];
@@ -126,7 +126,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.x);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -141,7 +141,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -155,7 +155,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.y);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -170,7 +170,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -185,7 +185,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.z);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -200,7 +200,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -215,7 +215,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.w);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -230,7 +230,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -249,7 +249,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.x);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -264,7 +264,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -278,7 +278,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.y);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -293,7 +293,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -308,7 +308,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.z);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -323,7 +323,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -338,7 +338,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 				e = HD.y;
 				for (l = 28, m = 1; m < 9; l -= 4, m++) {
 					CORE_LOCAL_COMPUTE_TB(direction.w);
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 						maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -353,7 +353,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 				maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-				if (SAMETYPE(B, Int2Type<TRUE>))
+				if (B==Bool::TRUE)
 				{
 					maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 					prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -378,7 +378,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 #pragma unroll 8
 					for (l = 28, m = 1; m < 9; l -= 4, m++) {
 						CORE_LOCAL_COMPUTE();
-						if (SAMETYPE(B, Int2Type<TRUE>))
+						if (B==Bool::TRUE)
 						{
 							bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
 							maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -395,7 +395,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 					maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
 
-					if (SAMETYPE(B, Int2Type<TRUE>))
+					if (B==Bool::TRUE)
 					{
 						maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
 						prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
@@ -413,7 +413,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 	device_res->query_batch_end[tid] = maxXY_x;//copy the end position on query_batch sequence to the output array in the GPU mem
 	device_res->target_batch_end[tid] = maxXY_y;//copy the end position on target_batch sequence to the output array in the GPU mem
 
-    if (SAMETYPE(B, Int2Type<TRUE>))
+    if (B==Bool::TRUE)
     {
         device_res_second->aln_score[tid] = maxHH_second;
         device_res_second->query_batch_end[tid] = maxXY_x_second;
@@ -422,7 +422,7 @@ __global__ void gasal_local_kernel(uint32_t *packed_query_batch, uint32_t *packe
 
 
     /*------------------Now to find the start position-----------------------*/
-    if (SAMETYPE(S, Int2Type<WITH_START>))
+    if (S==CompStart::WITH_START)
     {
 
         int32_t rend_pos = maxXY_x;//end position on query_batch sequence

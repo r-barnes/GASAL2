@@ -26,7 +26,7 @@ namespace thrust {
 	using host_pinned_vector = thrust::host_vector<T, thrust::system::cuda::experimental::pinned_allocator<T>>;
 }
 
-enum comp_start{
+enum class CompStart {
 	WITHOUT_START,
 	WITH_START,
 	WITH_TB
@@ -34,19 +34,19 @@ enum comp_start{
 
 // Generic enum for ture/false. Using this instead of bool to generalize templates out of Int values for secondBest.
 // Can be usd more generically, for example for WITH_/WITHOUT_START.
-enum Bool{
+enum class Bool {
 	FALSE,
 	TRUE
 };
 
-enum data_source{
+enum class DataSource {
 	NONE,
 	QUERY,
 	TARGET,
 	BOTH
 };
 
-enum algo_type {
+enum class algo_type {
 	UNKNOWN,
 	GLOBAL,
 	SEMI_GLOBAL,
@@ -56,7 +56,7 @@ enum algo_type {
 	KSW
 };
 
-enum operation_on_seq{
+enum class operation_on_seq{
 	FORWARD_NATURAL,
 	REVERSE_NATURAL,
 	FORWARD_COMPLEMENT,

@@ -98,7 +98,8 @@ __host__ __device__ uint8_t count_word_trailing_n(uint32_t word){
 }
 
 
-
+//TODO: Destroy
+/*
 __global__ void	gasal_reversecomplement_kernel(
 	uint32_t       *const packed_query_batch,
 	uint32_t       *const packed_target_batch,
@@ -136,18 +137,18 @@ __global__ void	gasal_reversecomplement_kernel(
 	// avoid useless code duplicate thanks to pointers to route the data flow where it should be, twice.
 	// The kernel is already generic. Later on this can be used to split the kernel into two using templates...
 	#pragma unroll 2
-	for (int p = QUERY; p <= TARGET; p++)
+	for (int p = DataSource::QUERY; p <= DataSource::TARGET; p++)
 	{
 		switch(p)
 		{
-			case QUERY:
+			case DataSource::QUERY:
 				op = query_op;
 				packed_batch = packed_query_batch;
 				batch_regs = &query_batch_regs;
 				batch_regs_to_swap = &query_batch_regs_to_swap;
 				packed_batch_idx = &packed_query_batch_idx;
 				break;
-			case TARGET:
+			case DataSource::TARGET:
 				op = target_op;
 				packed_batch = packed_target_batch;
 				batch_regs = &target_batch_regs;
@@ -173,16 +174,16 @@ __global__ void	gasal_reversecomplement_kernel(
 
 			for (uint32_t i = 0; i < *(batch_regs_to_swap); i++) // reverse all words. There's a catch with the last word (in the middle of the sequence), see final if.
 			{
-				/* This  is the current operation flow:\
-					- Read the first 32-bits word on HEAD
-					- Combine the reads of 2 last 32-bits words on tail to create the 32-bits word WITHOUT N's
-					- Swap them
-					- Write them at the correct places. Remember we're building 32-bits words across two 32-bits words on tail.
-					So we have to take care of which bits are to be written on tail, too.
+				//  This  is the current operation flow:\
+				// 	- Read the first 32-bits word on HEAD
+				// 	- Combine the reads of 2 last 32-bits words on tail to create the 32-bits word WITHOUT N's
+				// 	- Swap them
+				// 	- Write them at the correct places. Remember we're building 32-bits words across two 32-bits words on tail.
+				// 	So we have to take care of which bits are to be written on tail, too.
 
-				You progress through both heads and tails that way, until you reach the center of the sequence.
-				When you reach it, you actually don't write one of the words to avoid overwrite.
-				*/
+				// You progress through both heads and tails that way, until you reach the center of the sequence.
+				// When you reach it, you actually don't write one of the words to avoid overwrite.
+
 				const uint32_t rpac_1 = *(packed_batch + *(packed_batch_idx) + i); //load 8 packed bases from head
 				const uint32_t rpac_2 = ((*(packed_batch + *(packed_batch_idx) + *(batch_regs)-2 - i)) << (32-nbr_N)) | ((*(packed_batch + *(packed_batch_idx) + *(batch_regs)-1 - i)) >> nbr_N);
 
@@ -218,7 +219,7 @@ __global__ void	gasal_reversecomplement_kernel(
   }
 }
 
-
+*/
 
 
 

@@ -41,7 +41,7 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 	gpu_storage.host_query_op.resize(new_max_alns);
 	gpu_storage.host_target_op.resize(new_max_alns);
 
-	if (params.algo == KSW)
+	if (params.algo == algo_type::KSW)
 		gpu_storage.host_seed_scores.resize(new_max_alns);
 	//fprintf(stderr, "_ops done ");
 
@@ -58,7 +58,7 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 	gpu_storage.device_cpy = gasal_res_new_device_cpy(new_max_alns, params);
 	gpu_storage.device_res = gasal_res_new_device(gpu_storage.device_cpy);
 
-	if (params.secondBest)
+	if (params.secondBest==Bool::TRUE)
 	{
 		gasal_res_destroy_host(gpu_storage.host_res_second);
 		gpu_storage.host_res_second = gasal_res_new_host(new_max_alns, params);
@@ -79,13 +79,13 @@ void gasal_host_alns_resize(gasal_gpu_storage_t &gpu_storage, int new_max_alns, 
 }
 
 // operation (Reverse/complement) filler.
-void gasal_op_fill(gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, data_source SRC){
+void gasal_op_fill(gasal_gpu_storage_t &gpu_storage, const uint8_t *data, uint32_t nbr_seqs_in_stream, DataSource SRC){
   uint8_t *host_op = nullptr;
   switch(SRC){
-    case QUERY:
+    case DataSource::QUERY:
       host_op = gpu_storage.host_query_op.data();
       break;
-    case TARGET:
+    case DataSource::TARGET:
       host_op = gpu_storage.host_target_op.data();
       break;
     default:

@@ -191,13 +191,13 @@ int main(int argc, char **argv) {
                   query_batch_idx,
                   input_data.first.sequences.at(i).c_str(),
                   input_data.first.sequences.at(i).size(),
-                  QUERY);
+                  DataSource::QUERY);
 
           target_batch_idx = gasal_host_batch_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage,
                   target_batch_idx,
                   input_data.second.sequences.at(i).c_str(),
                   input_data.second.sequences.at(i).size(),
-                  TARGET);
+                  DataSource::TARGET);
 
 
           (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_lens[j] = input_data.first.sequences.at(i).size();
@@ -211,8 +211,8 @@ int main(int argc, char **argv) {
         #endif
 
         // Here, we fill the operations arrays for the current batch to be processed by the stream
-        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, QUERY);
-        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, TARGET);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, DataSource::QUERY);
+        gasal_op_fill(*gpu_batch_arr[gpu_batch_arr_idx].gpu_storage, input_data.second.modifiers.data() + seqs_done - j, j, DataSource::TARGET);
 
 
         gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch = j;
@@ -245,30 +245,28 @@ int main(int argc, char **argv) {
             std::cout << "\ttarget_name=" << input_data.second.headers.at(i);
             std::cout << "\tscore=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->aln_score[j] ;
 
-
-            /// WARNING : INEQUALITY ON ENUM: CAN BREAK IF ENUM ORDER IS CHANGED
-            if ((args.start_pos == WITH_START || args.start_pos == WITH_TB)
-              && ((args.algo == SEMI_GLOBAL && (args.semiglobal_skipping_head != NONE || args.semiglobal_skipping_head != NONE))
-                || args.algo > SEMI_GLOBAL))
+            if ((args.start_pos == CompStart::WITH_START || args.start_pos == CompStart::WITH_TB)
+              && ((args.algo == algo_type::SEMI_GLOBAL && (args.semiglobal_skipping_head != DataSource::NONE || args.semiglobal_skipping_head != DataSource::NONE))
+                || args.algo > algo_type::SEMI_GLOBAL))
             {
               std::cout << "\tquery_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_start[j];
               std::cout << "\ttarget_batch_start=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_start[j];
             }
 
-            if (args.algo != GLOBAL)
+            if (args.algo != algo_type::GLOBAL)
             {
               std::cout << "\tquery_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->query_batch_end[j];
               std::cout << "\ttarget_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->target_batch_end[j] ;
             }
 
-            if (args.secondBest)
+            if (args.secondBest==Bool::TRUE)
             {
               std::cout << "\t2nd_score=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->aln_score[j] ;
               std::cout << "\t2nd_query_batch_end="  << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->query_batch_end[j];
               std::cout << "\t2nd_target_batch_end=" << (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res_second->target_batch_end[j] ;
             }
 
-            if (args.start_pos == WITH_TB) {
+            if (args.start_pos == CompStart::WITH_TB) {
               std::cout << "\tCIGAR=";
               int offset = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_query_batch_offsets[j];
               int n_cigar_ops = (gpu_batch_arr[gpu_batch_arr_idx].gpu_storage)->host_res->n_cigar_ops[j];

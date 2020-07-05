@@ -10,13 +10,13 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 
 	CHECKCUDAERROR(cudaHostAlloc(&(res->aln_score), max_n_alns * sizeof(int32_t),cudaHostAllocDefault));
 
-	if (params.algo == GLOBAL) {
+	if (params.algo == algo_type::GLOBAL) {
 		res->query_batch_start = nullptr;
 		res->target_batch_start = nullptr;
 		res->query_batch_end = nullptr;
 		res->target_batch_end = nullptr;
 	} else {
-		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
+		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
@@ -30,7 +30,7 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 		}
 
 	}
-	if (params.start_pos == WITH_TB) {
+	if (params.start_pos == CompStart::WITH_TB) {
 		CHECKCUDAERROR(cudaHostAlloc(&(res->n_cigar_ops), max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
 	}
 
@@ -64,13 +64,13 @@ gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &par
 
 	CHECKCUDAERROR(cudaMalloc(&(res->aln_score), max_n_alns * sizeof(int32_t)));
 
-	if (params.algo == GLOBAL) {
+	if (params.algo == algo_type::GLOBAL) {
 		res->query_batch_start  = nullptr;
 		res->target_batch_start = nullptr;
 		res->query_batch_end    = nullptr;
 		res->target_batch_end   = nullptr;
 	} else {
-		if (params.start_pos == WITH_START || params.start_pos == WITH_TB) {
+		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
 			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_start),  max_n_alns * sizeof(uint32_t)));
 			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start), max_n_alns * sizeof(uint32_t)));
 			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),    max_n_alns * sizeof(uint32_t)));

@@ -28,7 +28,7 @@
 
 
 
-template <typename S>
+template <CompStart S>
 __global__ void gasal_global_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch,  uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, uint4 *packed_tb_matrices, int n_tasks)
 {
 	int32_t i, j, k, l, m;
@@ -78,7 +78,7 @@ __global__ void gasal_global_kernel(uint32_t *packed_query_batch, uint32_t *pack
 			register uint32_t rpac =packed_query_batch[packed_query_batch_idx + j];//load 8 packed bases from query_batch sequence
 
 			//--------------compute a tile of 8x8 cells-------------------
-			if (SAMETYPE(S, Int2Type<WITH_TB>)) {
+			if (S==CompStart::WITH_TB) {
 				uint4 direction = make_uint4(0,0,0,0);
 				uint32_t rbase = (rpac >> 28) & 15;//get a base from query_batch sequence
 				//------------load intermediate values----------------------

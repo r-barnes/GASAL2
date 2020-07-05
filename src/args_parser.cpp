@@ -3,6 +3,22 @@
 
 #include <gasal2/args_parser.h>
 
+std::ostream& operator<<(std::ostream &out, const algo_type value){
+    out<<static_cast<typename std::underlying_type<algo_type>::type>(value);
+    return out;
+}
+std::ostream& operator<<(std::ostream &out, const DataSource value){
+    out<<static_cast<typename std::underlying_type<DataSource>::type>(value);
+    return out;
+}
+std::ostream& operator<<(std::ostream &out, const Bool value){
+    out<<static_cast<typename std::underlying_type<Bool>::type>(value);
+    return out;
+}
+std::ostream& operator<<(std::ostream &out, const CompStart value){
+    out<<static_cast<typename std::underlying_type<CompStart>::type>(value);
+    return out;
+}
 
 
 Parameters::Parameters(int argc_, char **argv_) {
@@ -92,7 +108,7 @@ void Parameters::parse() {
             }
             if (!arg_cur.compare("--second-best"))
             {
-                secondBest = TRUE;
+                secondBest = Bool::TRUE;
             }
 
         } else if (arg_cur.at(0) == '-' )
@@ -106,14 +122,14 @@ void Parameters::parse() {
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
                     if (!arg_next.compare("local"))
-                        algo = LOCAL;
+                        algo = algo_type::LOCAL;
                     else if (!arg_next.compare("semi_global"))
-                        algo = SEMI_GLOBAL;
+                        algo = algo_type::SEMI_GLOBAL;
                     else if (!arg_next.compare("global"))
-                        algo = GLOBAL;
+                        algo = algo_type::GLOBAL;
                     else if (!arg_next.compare("ksw"))
                     {
-                        algo = KSW;
+                        algo = algo_type::KSW;
                     }
                 break;
                 case 'a':
@@ -137,10 +153,10 @@ void Parameters::parse() {
                     gap_ext_score = std::stoi(arg_next);
                 break;
                 case 's':
-                    start_pos = WITH_START;
+                    start_pos = CompStart::WITH_START;
                 break;
                 case 't':
-                	start_pos = WITH_TB;
+                	start_pos = CompStart::WITH_TB;
                 	break;
                 case 'p':
                     print_out = 1;
@@ -159,13 +175,13 @@ void Parameters::parse() {
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
                     if (!arg_next.compare("NONE"))
-                        semiglobal_skipping_head = NONE;
+                        semiglobal_skipping_head = DataSource::NONE;
                     else if (!arg_next.compare("TARGET"))
-                        semiglobal_skipping_head = TARGET;
+                        semiglobal_skipping_head = DataSource::TARGET;
                     else if (!arg_next.compare("QUERY"))
-                        semiglobal_skipping_head = QUERY;
+                        semiglobal_skipping_head = DataSource::QUERY;
                     else if (!arg_next.compare("BOTH"))
-                        semiglobal_skipping_head = BOTH;
+                        semiglobal_skipping_head = DataSource::BOTH;
                     else
                     {
                         failure(WRONG_ARG);
@@ -174,13 +190,13 @@ void Parameters::parse() {
                     c++;
                     arg_next = std::string((const char*) (*(argv + c) ) );
                     if (!arg_next.compare("NONE"))
-                        semiglobal_skipping_tail = NONE;
+                        semiglobal_skipping_tail = DataSource::NONE;
                     else if (!arg_next.compare("TARGET"))
-                        semiglobal_skipping_tail = TARGET;
+                        semiglobal_skipping_tail = DataSource::TARGET;
                     else if (!arg_next.compare("QUERY"))
-                        semiglobal_skipping_tail = QUERY;
+                        semiglobal_skipping_tail = DataSource::QUERY;
                     else if (!arg_next.compare("BOTH"))
-                        semiglobal_skipping_tail = BOTH;
+                        semiglobal_skipping_tail = DataSource::BOTH;
                     else
                     {
                         failure(WRONG_ARG);

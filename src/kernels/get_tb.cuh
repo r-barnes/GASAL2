@@ -1,6 +1,8 @@
 #pragma once
 
-template <typename T>
+#include <gasal2/gasal.h>
+
+template <algo_type T>
 __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *cigar_offset, uint4 *packed_tb_matrices, gasal_res_t *device_res, int n_tasks) {
 
 	int i, j;
@@ -12,12 +14,12 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 	int offset = cigar_offset[tid];
 
 
-	if (SAMETYPE(T, Int2Type<LOCAL>)) {
+	if (T==algo_type::LOCAL) {
 		i = device_res->target_batch_end[tid];
 		j = device_res->query_batch_end[tid];
 		total_score = device_res->aln_score[tid];
 		curr_score = 0;
-	} else if (SAMETYPE(T, Int2Type<GLOBAL>)) {
+	} else if (T==algo_type::GLOBAL) {
 		i = target_batch_lens[tid];
 		j = query_batch_lens[tid];
 	}
@@ -83,7 +85,7 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 			count = 1;
 		}
 
-		if (SAMETYPE(T, Int2Type<LOCAL>)) {
+		if (T==algo_type::LOCAL) {
 			curr_score += ((op_to_fill == 2 || op_to_fill == 3) && prev_op_to_fill != op_to_fill) ? -_cudaGapOE : ((op_to_fill == 2 || op_to_fill == 3) ? - _cudaGapExtend : (op_to_fill == 1 ? -_cudaMismatchScore : _cudaMatchScore));
 			if (curr_score == total_score) break;
 		}
@@ -100,7 +102,7 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 	cigar[offset++] = reg_out;
 	n_ops++;
 
-	if (SAMETYPE(T, Int2Type<GLOBAL>)) {
+	if (T==algo_type::GLOBAL) {
 		while (i >= 0) {
 			uint32_t reg_out = 0;
 			uint8_t resd_count = (i+1) <= 63 ? (i+1) : 63;
@@ -123,7 +125,7 @@ __global__ void gasal_get_tb(uint8_t *cigar, uint32_t *query_batch_lens, uint32_
 	}
 
 
-	if (SAMETYPE(T, Int2Type<LOCAL>)) {
+	if (T==algo_type::LOCAL) {
 		device_res->target_batch_start[tid] = i;
 		device_res->query_batch_start[tid] = j;
 	}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <gasal2/gasal.h>
+
 #define CORE_COMPUTE_SEMIGLOBAL() \
     uint32_t gbase = (gpac >> l) & 15; /* get a base from target_batch sequence */ \
     DEV_GET_SUB_SCORE_LOCAL(subScore, rbase, gbase);/* check equality of rbase and gbase */\
@@ -22,7 +24,7 @@
 	TAIL : set to QUERY, TARGET, BOTH or NONE. Tells which TAIL (suffix) is allowed to be ignored.
 */
 
-template <typename T, typename S, typename B, typename HEAD, typename TAIL>
+template <algo_type T, CompStart S, Bool B, DataSource HEAD, DataSource TAIL>
 __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t *packed_target_batch, uint32_t *query_batch_lens, uint32_t *target_batch_lens, uint32_t *query_batch_offsets, uint32_t *target_batch_offsets, gasal_res_t *device_res, gasal_res_t *device_res_second, uint4 *packed_tb_matrices, int n_tasks)
 {
 
@@ -70,7 +72,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 
 
 
-	if (SAMETYPE(HEAD, Int2Type<QUERY>) || SAMETYPE(HEAD, Int2Type<BOTH>))
+	if (HEAD==DataSource::QUERY || HEAD==DataSource::BOTH)
 	{
 		for (i = 0; i < MAX_QUERY_LEN; i++)
 		{
@@ -84,7 +86,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		}
 	}
 
-	if (SAMETYPE(HEAD, Int2Type<QUERY>) || SAMETYPE(HEAD, Int2Type<NONE>))
+	if (HEAD==DataSource::QUERY || HEAD==DataSource::NONE)
 	{
 		u = 0;
 		r = 0;
@@ -97,7 +99,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		gidx = i << 3;
 		ridx = 0;
 
-		if (SAMETYPE(HEAD, Int2Type<TARGET>) || SAMETYPE(HEAD, Int2Type<BOTH>))
+		if (HEAD==DataSource::TARGET || HEAD==DataSource::BOTH)
 		{
 			for (m = 0; m < 9; m++)
 			{
@@ -143,7 +145,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 				ridx++;
 
 				//------the last line of DP matrix------------
-				if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+				if (TAIL==DataSource::TARGET || TAIL==DataSource::BOTH)
 				{
 					if (ridx == read_len)
 					{
@@ -153,7 +155,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 							maxXY_y = (h[m] > maxHH && (gidx + m - 1) < ref_len) ? gidx + (m-1) : maxXY_y;
 							maxHH = (h[m] > maxHH && (gidx + m - 1) < ref_len) ? h[m] : maxHH;
 
-							if (SAMETYPE(B, Int2Type<TRUE>))
+							if (B==Bool::TRUE)
 							{
 								bool override_second = (h[m] > maxHH_second && h[m] < maxHH && (gidx + m - 1) < ref_len);
 								maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
@@ -168,7 +170,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 	} // endfor() on targt words
 
 
-	if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+	if (TAIL==DataSource::QUERY || TAIL==DataSource::BOTH)
 	{
 		for (m = 0; m < MAX_QUERY_LEN; m++)
 		{
@@ -178,7 +180,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 				maxXY_x = m;
 				maxHH = score_tmp;
 			}
-			if (SAMETYPE(B, Int2Type<TRUE>))
+			if (B==Bool::TRUE)
 			{
 				bool override_second = (score_tmp > maxHH_second && score_tmp < maxHH && m < ref_len);
 				maxXY_x_second = (override_second) ? m : maxXY_x_second;
@@ -192,7 +194,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		if (maxXY_x != ref_len)
 			maxXY_y = read_len;
 
-		if (SAMETYPE(B, Int2Type<TRUE>))
+		if (B==Bool::TRUE)
 		{
 			if (maxXY_x_second != ref_len)
 				maxXY_y_second = read_len;
@@ -203,15 +205,13 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 	device_res->target_batch_end[tid] =  maxXY_y;//copy the end position on the target_batch sequence to the output array in the GPU mem
 	device_res->query_batch_end[tid] =  maxXY_x;//copy the end position on the target_batch sequence to the output array in the GPU mem
 
-	if (SAMETYPE(B, Int2Type<TRUE>))
-	{
+	if (B==Bool::TRUE){
 		device_res_second->aln_score[tid] = maxHH_second;
 		device_res_second->target_batch_end[tid] =  maxXY_y_second;
 		device_res_second->query_batch_end[tid] =  maxXY_x_second;
 	}
 
-	if (SAMETYPE(S, Int2Type<WITH_START>))
-	{
+	if (S==CompStart::WITH_START){
 
 		/*------------------Now to find the start position-----------------------*/
 
@@ -261,7 +261,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		maxHH = MINUS_INF;
 		maxXY_y = 0;
 
-		if (SAMETYPE(HEAD, Int2Type<QUERY>) || SAMETYPE(HEAD, Int2Type<BOTH>))
+		if (HEAD==DataSource::QUERY || HEAD==DataSource::BOTH)
 		{
 			for (i = 0; i < MAX_QUERY_LEN; i++)
 			{
@@ -275,7 +275,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 			}
 		}
 
-		if (SAMETYPE(HEAD, Int2Type<QUERY>) || SAMETYPE(HEAD, Int2Type<NONE>))
+		if (HEAD==DataSource::QUERY || HEAD==DataSource::NONE)
 		{
 			u = 0;
 			r = 0;
@@ -287,7 +287,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		for (i = gend_reg; i < target_batch_regs && maxHH < fwd_score; i++) { //target_batch sequence in rows
 			gidx = i << 3;
 			ridx = 0;
-			if (SAMETYPE(HEAD, Int2Type<TARGET>) || SAMETYPE(HEAD, Int2Type<BOTH>))
+			if (HEAD==DataSource::TARGET || HEAD==DataSource::BOTH)
 			{
 				for (m = 0; m < 9; m++)
 				{
@@ -328,7 +328,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 					ridx++;
 
 					//------the last line of DP matrix------------
-					if (SAMETYPE(TAIL, Int2Type<TARGET>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+					if (TAIL==DataSource::TARGET || TAIL==DataSource::BOTH)
 					{
 						if (ridx == read_len)
 						{
@@ -345,7 +345,7 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 		} // endfor() on target words
 
 
-		if (SAMETYPE(TAIL, Int2Type<QUERY>) || SAMETYPE(TAIL, Int2Type<BOTH>))
+		if (TAIL==DataSource::QUERY || TAIL==DataSource::BOTH)
 		{
 			for (m = 0; m < MAX_QUERY_LEN; m++)
 			{
@@ -365,5 +365,5 @@ __global__ void gasal_semi_global_kernel(uint32_t *packed_query_batch, uint32_t 
 
 		device_res->target_batch_start[tid] = (ref_len - 1) - maxXY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
 		device_res->query_batch_start[tid] = (read_len - 1) - maxXY_x;//copy the start position on target_batch sequence to the output array in the GPU mem
-	} // endif(SAMETYPE(START, Int2Type<WITH_START>()))
+	} // endif(S==CompStart::Int2TypeITH_START>()))
 }

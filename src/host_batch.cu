@@ -72,7 +72,7 @@ void gasal_host_batch_reset(gasal_gpu_storage_t &gpu_storage){
 
 
 // TODO: make a template... now that you started to go the C++/template way, just stick to it.
-uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char* data, uint32_t size, data_source SRC){
+uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char* data, uint32_t size, DataSource SRC){
 	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 
@@ -80,11 +80,11 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, c
 	uint32_t *p_batch_bytes = NULL;
 
 	switch(SRC) {
-		case QUERY:
+		case DataSource::QUERY:
 			cur_page = gpu_storage.extensible_host_unpacked_query_batch;
 			p_batch_bytes = &gpu_storage.host_max_query_batch_bytes;
 		break;
-		case TARGET:
+		case DataSource::TARGET:
 			cur_page = gpu_storage.extensible_host_unpacked_target_batch;
 			p_batch_bytes = &gpu_storage.host_max_target_batch_bytes;
 		break;
@@ -104,7 +104,7 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, c
 		fprintf(stderr,"[GASAL WARNING:] Trying to write %d bytes while only %d remain (%s) (block size %d, filled %d bytes).\n                 Allocating a new block of size %d, total size available reaches %d. Doing this repeadtedly slows down the execution.\n",
 				size + nbr_N,
 				cur_page->page_size - cur_page->data_size,
-				(SRC == QUERY ? "query":"target"),
+				(SRC == DataSource::QUERY ? "query":"target"),
 				cur_page->page_size,
 				cur_page->data_size,
 				cur_page->page_size * 2,
@@ -149,23 +149,23 @@ uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, c
 }
 
 
-uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char base, data_source SRC){
+uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char base, DataSource SRC){
   return gasal_host_batch_add(gpu_storage, idx, &base, 1, SRC );
 }
 
 
-uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char *data, uint32_t size, data_source SRC){
+uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char *data, uint32_t size, DataSource SRC){
 	// since query and target are very symmetric here, we use pointers to route the data where it has to,
 	// while keeping the actual memory management 'source-agnostic'.
 	host_batch_t *cur_page = NULL;
 	uint32_t *p_batch_bytes = NULL;
 
 	switch(SRC) {
-		case QUERY:
+		case DataSource::QUERY:
 			cur_page = gpu_storage.extensible_host_unpacked_query_batch;
 			p_batch_bytes = &gpu_storage.host_max_query_batch_bytes;
 		break;
-		case TARGET:
+		case DataSource::TARGET:
 			cur_page = gpu_storage.extensible_host_unpacked_target_batch;
 			p_batch_bytes = &gpu_storage.host_max_target_batch_bytes;
 		break;
@@ -192,7 +192,7 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, co
 			fprintf(stderr,"[GASAL WARNING:] Trying to write %d bytes at position %d on host memory (%s) while only  %d bytes are available. Therefore, allocating %d bytes more on CPU. Repeating this many times can provoke a degradation of performance.\n",
 					size,
 					idx,
-					(SRC == QUERY ? "query":"target"),
+					(SRC == DataSource::QUERY ? "query":"target"),
 					*p_batch_bytes,
 					*p_batch_bytes * 2);
 

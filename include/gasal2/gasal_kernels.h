@@ -21,7 +21,7 @@ struct SameType<T, T>
    enum { result = 1 };
 };
 
-#define SAMETYPE(a, b) (SameType<a,b>::result)
+#define SAMETYPE(a, b) (std::is_same<a,b>::value)
 
 __constant__ int32_t _cudaGapO;          // gap open penalty
 __constant__ int32_t _cudaGapOE;         // sum of gap open and extension penalties

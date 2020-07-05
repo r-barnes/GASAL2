@@ -5,13 +5,216 @@
 #include <gasal2/gasal_kernels.h>
 #include <gasal2/host_batch.h>
 
-inline void gasal_kernel_launcher(int32_t N_BLOCKS, int32_t BLOCKDIM, algo_type algo, comp_start start, gasal_gpu_storage_t &gpu_storage, int32_t actual_n_alns, int32_t k_band, data_source semiglobal_skipping_head, data_source semiglobal_skipping_tail, Bool secondBest){
+
+
+
+
+
+
+
+/*  ####################################################################################
+    SEMI_GLOBAL Kernels generation - read from the bottom one, all the way up. (the most specialized ones are written before the ones that call them)
+    ####################################################################################
+*/
+#define SEMIGLOBAL_KERNEL_CALL(a,s,h,t,b)                                                \
+  case t: {                                                                              \
+    gasal_semi_global_kernel<a, s, b, h, t><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>( \
+      thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),                   \
+      thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),                  \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),                     \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),                    \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),                  \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),                 \
+      gpu_storage.device_res,                                                            \
+      gpu_storage.device_res_second,                                                     \
+      gpu_storage.packed_tb_matrices,                                                    \
+      actual_n_alns                                                                      \
+    );                                                                                   \
+    break;                                                                               \
+  }
+
+#define SWITCH_SEMI_GLOBAL_TAIL(a,s,h,t,b)                                               \
+  case h:                                                                                \
+  switch(t) {                                                                            \
+    SEMIGLOBAL_KERNEL_CALL(a,s,h,DataSource::NONE,b)                                     \
+    SEMIGLOBAL_KERNEL_CALL(a,s,h,DataSource::QUERY,b)                                    \
+    SEMIGLOBAL_KERNEL_CALL(a,s,h,DataSource::TARGET,b)                                   \
+    SEMIGLOBAL_KERNEL_CALL(a,s,h,DataSource::BOTH,b)                                     \
+  }                                                                                      \
+  break;
+
+#define SWITCH_SEMI_GLOBAL_HEAD(a,s,h,t,b)                                               \
+  case s:                                                                                \
+  switch(h) {                                                                            \
+    SWITCH_SEMI_GLOBAL_TAIL(a,s,DataSource::NONE,t,b)                                    \
+    SWITCH_SEMI_GLOBAL_TAIL(a,s,DataSource::QUERY,t,b)                                   \
+    SWITCH_SEMI_GLOBAL_TAIL(a,s,DataSource::TARGET,t,b)                                  \
+    SWITCH_SEMI_GLOBAL_TAIL(a,s,DataSource::BOTH,t,b)                                    \
+  }                                                                                      \
+  break;
+
+
+/*  ####################################################################################
+    ALGORITHMS Kernels generation. Allows to have a single line written for all kernels calls. The switch-cases are MACRO-generated.
+    ####################################################################################
+*/
+
+#define SWITCH_SEMI_GLOBAL(a,s,h,t,b) SWITCH_SEMI_GLOBAL_HEAD(a,s,h,t,b)
+
+#define SWITCH_LOCAL(a,s,h,t,b)                                                      \
+  case s: {                                                                          \
+    gasal_local_kernel<algo_type::LOCAL, s, b><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>( \
+      thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),               \
+      thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),              \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),                 \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),                \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),              \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),             \
+      gpu_storage.device_res,                                                        \
+      gpu_storage.device_res_second,                                                 \
+      gpu_storage.packed_tb_matrices,                                                \
+      actual_n_alns                                                                  \
+    );                                                                               \
+    if(s == CompStart::WITH_TB) {                                                    \
+      const auto aln_kernel_err = cudaGetLastError();                                \
+      if ( cudaSuccess != aln_kernel_err )                                           \
+      {                                                                              \
+        fprintf(stderr,                                                              \
+          "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %sCHEESE", \
+          cudaGetErrorString(aln_kernel_err), aln_kernel_err,  __LINE__, __FILE__    \
+        );                                                                           \
+        exit(EXIT_FAILURE);                                                          \
+      }                                                                              \
+      gasal_get_tb<algo_type::LOCAL><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(    \
+        thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data()),           \
+        thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),               \
+        thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),              \
+        thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),            \
+        gpu_storage.packed_tb_matrices,                                              \
+        gpu_storage.device_res,                                                      \
+        gpu_storage.current_n_alns                                                   \
+      );                                                                             \
+    }                                                                                \
+    break;                                                                           \
+  }
+
+#define SWITCH_GLOBAL(a,s,h,t,b)                                                     \
+  case s: {                                                                          \
+    gasal_global_kernel<s><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(              \
+      thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),               \
+      thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),              \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),                 \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),                \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),              \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),             \
+      gpu_storage.device_res,                                                        \
+      gpu_storage.packed_tb_matrices,                                                \
+      actual_n_alns                                                                  \
+    );                                                                               \
+    if(s == CompStart::WITH_TB) {                                                    \
+      cudaError_t aln_kernel_err = cudaGetLastError();                               \
+      if ( cudaSuccess != aln_kernel_err )                                           \
+      {                                                                              \
+        fprintf(                                                                     \
+          stderr,                                                                    \
+          "[GASAL CUDA ERROR:] %s(CUDA error no.=%d). Line no. %d in file %sCHEESE", \
+          cudaGetErrorString(aln_kernel_err), aln_kernel_err, __LINE__, __FILE__     \
+        );                                                                           \
+        exit(EXIT_FAILURE);                                                          \
+      }                                                                              \
+      gasal_get_tb<algo_type::GLOBAL><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(   \
+        thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data()),           \
+        thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),               \
+        thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),              \
+        thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),            \
+        gpu_storage.packed_tb_matrices,                                              \
+        gpu_storage.device_res,                                                      \
+        gpu_storage.current_n_alns                                                   \
+      );                                                                             \
+    }                                                                                \
+    break;                                                                           \
+  }
+
+
+#define SWITCH_KSW(a,s,h,t,b)                                                  \
+  case s:                                                                      \
+    gasal_ksw_kernel<b><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(           \
+      thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),         \
+      thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),        \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),           \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),          \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),        \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),       \
+      gpu_storage.seed_scores,                                                 \
+      gpu_storage.device_res,                                                  \
+      gpu_storage.device_res_second, actual_n_alns                             \
+    );                                                                         \
+    break;
+
+#define SWITCH_BANDED(a,s,h,t,b)                                               \
+  case s:                                                                      \
+    gasal_banded_tiled_kernel<<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(     \
+      thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),         \
+      thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),        \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()),           \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_lens.data()),          \
+      thrust::raw_pointer_cast(gpu_storage.query_batch_offsets.data()),        \
+      thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()),       \
+      gpu_storage.device_res,                                                  \
+      actual_n_alns,                                                           \
+      k_band>>3                                                                \
+    );                                                                         \
+    break;
+
+/*  ####################################################################################
+    RUN PARAMETERS calls : general call (bottom, should be used), and first level TRUE/FALSE calculation for second best,
+    then 2nd level WITH / WITHOUT_START switch call (top)
+    ####################################################################################
+*/
+
+#define SWITCH_START(aname,a,s,h,t,b)                     \
+    case b:                                               \
+    switch(s){                                            \
+        SWITCH_## aname(a,CompStart::WITH_START,h,t,b)    \
+        SWITCH_## aname(a,CompStart::WITHOUT_START,h,t,b) \
+        SWITCH_## aname(a,CompStart::WITH_TB,h,t,b)       \
+    }                                                     \
+    break;
+
+#define SWITCH_SECONDBEST(aname,a,s,h,t,b)                \
+    switch(b) {                                           \
+        SWITCH_START(aname,a,s,h,t,Bool::TRUE)            \
+        SWITCH_START(aname,a,s,h,t,Bool::FALSE)           \
+    }
+
+#define KERNEL_SWITCH(aname,a,s,h,t,b)                    \
+    case a:                                               \
+        SWITCH_SECONDBEST(aname,a,s,h,t,b)                \
+    break;
+
+
+
+
+
+
+inline void gasal_kernel_launcher(
+	int32_t N_BLOCKS,
+	int32_t BLOCKDIM,
+	algo_type algo,
+	CompStart start,
+	gasal_gpu_storage_t &gpu_storage,
+	int32_t actual_n_alns,
+	int32_t k_band,
+	DataSource semiglobal_skipping_head,
+	DataSource semiglobal_skipping_tail,
+	Bool secondBest
+){
   switch(algo){
-    KERNEL_SWITCH(LOCAL,		start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
-    KERNEL_SWITCH(SEMI_GLOBAL,  start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);		// MACRO that expands all 32 semi-global kernels
-    KERNEL_SWITCH(GLOBAL,		start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
-    KERNEL_SWITCH(KSW,			start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
-    KERNEL_SWITCH(BANDED,		start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
+    KERNEL_SWITCH(LOCAL,       algo_type::LOCAL,       start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
+    KERNEL_SWITCH(SEMI_GLOBAL, algo_type::SEMI_GLOBAL, start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);		// MACRO that expands all 32 semi-global kernels
+    KERNEL_SWITCH(GLOBAL,      algo_type::GLOBAL,      start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
+    KERNEL_SWITCH(KSW,         algo_type::KSW,         start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
+    KERNEL_SWITCH(BANDED,      algo_type::BANDED,      start, semiglobal_skipping_head, semiglobal_skipping_tail, secondBest);
     default:
     break;
   }
@@ -100,7 +303,7 @@ void gasal_aln_async(
 		gpu_storage.unpacked_query_batch.resize(gpu_storage.gpu_max_query_batch_bytes);
 		gpu_storage.packed_query_batch.resize(gpu_storage.gpu_max_query_batch_bytes/8);
 
-		if (params.start_pos==WITH_TB){
+		if (params.start_pos==CompStart::WITH_TB){
 			fprintf(stderr, "[GASAL WARNING:] actual_query_batch_bytes(%d) > Allocated HOST memory for CIGAR (gpu_max_query_batch_bytes=%d). Therefore, allocating %d bytes on the host (gpu_max_query_batch_bytes=%d). Performance may be lost if this is repeated many times.\n", actual_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes*i, gpu_storage.gpu_max_query_batch_bytes*i);
 			if (gpu_storage.host_res->cigar)CHECKCUDAERROR(cudaFreeHost(gpu_storage.host_res->cigar));
 			CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage.host_res->cigar), gpu_storage.gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
@@ -145,7 +348,7 @@ void gasal_aln_async(
 		gpu_storage.device_cpy = gasal_res_new_device_cpy(gpu_storage.gpu_max_n_alns, params);
 		gpu_storage.device_res = gasal_res_new_device(gpu_storage.device_cpy);
 
-		if (params.secondBest)
+		if (params.secondBest==Bool::TRUE)
 		{
 			gasal_res_destroy_device(gpu_storage.device_res_second, gpu_storage.device_cpy_second);
 			gpu_storage.device_cpy_second = gasal_res_new_device_cpy(gpu_storage.gpu_max_n_alns, params);
@@ -225,7 +428,7 @@ void gasal_aln_async(
 	CHECKCUDAERROR(cudaMemcpyAsync(thrust::raw_pointer_cast(gpu_storage.target_batch_offsets.data()), thrust::raw_pointer_cast(gpu_storage.host_target_batch_offsets.data()), actual_n_alns * sizeof(uint32_t), cudaMemcpyHostToDevice,  gpu_storage.str));
 
 	// if needed copy seed scores
-	if (params.algo == KSW)
+	if (params.algo == algo_type::KSW)
 	{
 		if (gpu_storage.seed_scores == NULL)
 		{
@@ -310,7 +513,7 @@ void gasal_aln_async(
 	if (gpu_storage.host_res->target_batch_end && gpu_storage.device_cpy->target_batch_end)
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->target_batch_end, gpu_storage.device_cpy->target_batch_end, actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
 
-	if (params.start_pos == WITH_TB) {
+	if (params.start_pos == CompStart::WITH_TB) {
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->cigar, thrust::raw_pointer_cast(gpu_storage.unpacked_query_batch.data()), actual_query_batch_bytes * sizeof(uint8_t), cudaMemcpyDeviceToHost, gpu_storage.str));
 		CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res->n_cigar_ops, thrust::raw_pointer_cast(gpu_storage.query_batch_lens.data()), actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
 	}
@@ -318,7 +521,7 @@ void gasal_aln_async(
 
 
 	// not really needed to filter with params.secondBest, since all the pointers will be null and non-initialized.
-	if (params.secondBest)
+	if (params.secondBest==Bool::TRUE)
 	{
 		if (gpu_storage.host_res_second->aln_score && gpu_storage.device_cpy_second->aln_score)
 			CHECKCUDAERROR(cudaMemcpyAsync(gpu_storage.host_res_second->aln_score, gpu_storage.device_cpy_second->aln_score, actual_n_alns * sizeof(int32_t), cudaMemcpyDeviceToHost, gpu_storage.str));
