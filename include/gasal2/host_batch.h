@@ -10,5 +10,5 @@ void gasal_host_batch_reset(gasal_gpu_storage_t &gpu_storage);              // g
 uint32_t gasal_host_batch_fill(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char* data, uint32_t size, DataSource SRC); 	// fill the data
 uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char *data, uint32_t size, DataSource SRC);
 uint32_t gasal_host_batch_addbase(gasal_gpu_storage_t &gpu_storage, uint32_t idx, const char base, DataSource SRC);
-void gasal_host_batch_print(host_batch_t *res); 																		// printer
-void gasal_host_batch_printall(host_batch_t *res);																		// printer for the whole linked list
+void gasal_host_batch_print(const host_batch_t &res); 																		// printer
+void gasal_host_batch_printall(const host_batch_t &res);																		// printer for the whole linked list

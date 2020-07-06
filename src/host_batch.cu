@@ -217,20 +217,22 @@ uint32_t gasal_host_batch_add(gasal_gpu_storage_t &gpu_storage, uint32_t idx, co
 
 
 // this printer displays the whole sequence. It is heavy and shouldn't be called when you have more than a couple sequences.
-void gasal_host_batch_print(host_batch_t *res)
-{
-	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n",
-					res->offset, (res->next != NULL? res->next->offset : -1), res->data_size, res->page_size);
+void gasal_host_batch_print(const host_batch_t &res){
+	std::cerr<<"[GASAL PRINT] Page data: "<<"offset="<<res.offset;
+	if(res.next)
+		std::cerr<<", next_offset="<<res.next;
+	else
+		std::cerr<<", next_offset=NONE";
+	std::cerr<<", data size="<<res.data_size
+					 <<", page size="<<res.page_size
+					 <<"\n";
 }
 
 // this printer allows to see the linked list easily.
-void gasal_host_batch_printall(host_batch_t *res)
-{
-	fprintf(stderr, "[GASAL PRINT] Page data: offset=%d, next_offset=%d, data size=%d, page size=%d\n",
-					res->offset, (res->next != NULL? res->next->offset : -1), res->data_size, res->page_size);
-	if (res->next != NULL)
-	{
+void gasal_host_batch_printall(const host_batch_t &res){
+	gasal_host_batch_print(res);
+	if (res.next){
 		std::cerr<<"+--->";
-		gasal_host_batch_printall(res->next);
+		gasal_host_batch_printall(*res.next);
 	}
 }
