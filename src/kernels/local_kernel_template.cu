@@ -1,7 +1,6 @@
 #pragma once
 
-template<Bool B>
-__device__ void compute_local_cell(
+__device__ int32_t compute_local_cell(
   const uint32_t gbase,
   const uint32_t rbase,
   const int32_t  p,
@@ -16,6 +15,7 @@ __device__ void compute_local_cell(
   h = max(h, 0);
   f = max(tmp_hm - _cudaGapOE, f - _cudaGapExtend);
   e = max(tmp_hm - _cudaGapOE, e - _cudaGapExtend);
+  return tmp_hm;
 }
 
 __device__ void CORE_LOCAL_COMPUTE_START(
@@ -32,15 +32,9 @@ __device__ void CORE_LOCAL_COMPUTE_START(
   const int32_t gidx
 ){
   uint32_t gbase = (gpac >> l) & 0xF;
-  const auto subScore = DEV_GET_SUB_SCORE_LOCAL(rbase, gbase);
-  int32_t tmp_hm = p[m] + subScore;
-  h[m] = max(tmp_hm, f[m]);
-  h[m] = max(h[m], e);
-  h[m] = max(h[m], 0);
-  f[m] = max(tmp_hm- _cudaGapOE, f[m] - _cudaGapExtend);
-  e = max(tmp_hm- _cudaGapOE, e - _cudaGapExtend);
+  compute_local_cell(gbase, rbase, p[m], e, h[m], f[m]);
   maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
-  maxHH = (maxHH < h[m]) ? h[m] : maxHH;
+  maxHH   = (maxHH < h[m]) ? h[m] : maxHH;
   p[m] = h[m-1];
 }
 
@@ -60,20 +54,16 @@ __device__ void CORE_LOCAL_COMPUTE_TB(
   uint &direction_reg,
   const int32_t gidx
 ){
+  const auto fm_old = f[m];
+  const auto e_old = e;
   uint32_t gbase = (gpac >> l) & 0xF;
-  const auto subScore = DEV_GET_SUB_SCORE_LOCAL(rbase, gbase);
-  int32_t tmp_hm = p[m] + subScore;
+  const auto tmp_hm = compute_local_cell(gbase, rbase, p[m], e, h[m], f[m]);
   uint32_t m_or_x = tmp_hm >= p[m] ? 0 : 1;
-  h[m] = max(tmp_hm, f[m]);
-  h[m] = max(h[m], e);
-  h[m] = max(h[m], 0);
-  direction_reg |= h[m] == tmp_hm ? m_or_x << (28 - ((m - 1) << 2)) : (h[m] == f[m] ? (uint32_t)3 << (28 - ((m - 1) << 2)) : (uint32_t)2 << (28 - ((m - 1) << 2)));
-  direction_reg |= (tmp_hm - _cudaGapOE) > (f[m] - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (31 - ((m - 1) << 2));
-  f[m] = max(tmp_hm- _cudaGapOE, f[m] - _cudaGapExtend);
-  direction_reg |= (tmp_hm - _cudaGapOE) > (e - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (30 - ((m - 1) << 2));
-  e = max(tmp_hm- _cudaGapOE, e - _cudaGapExtend);
+  direction_reg |= h[m] == tmp_hm ? m_or_x << (28 - ((m - 1) << 2)) : (h[m] == fm_old ? (uint32_t)3 << (28 - ((m - 1) << 2)) : (uint32_t)2 << (28 - ((m - 1) << 2)));
+  direction_reg |= (tmp_hm - _cudaGapOE) > (fm_old - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (31 - ((m - 1) << 2));
+  direction_reg |= (tmp_hm - _cudaGapOE) > (e_old - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (30 - ((m - 1) << 2));
   maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
-  maxHH = (maxHH < h[m]) ? h[m] : maxHH;
+  maxHH   = (maxHH < h[m]) ? h[m] : maxHH;
   p[m] = h[m-1];
 }
 
@@ -96,7 +86,7 @@ __device__ void compute_local_row(
   #pragma unroll 8
   for(int32_t l = 28, m = 1; m < 9; l -= 4, m++) {
     const uint32_t gbase = (gpac >> l) & 0xF;
-    compute_local_cell<B>(gbase, rbase, p[m], e, h[m], f[m]);
+    compute_local_cell(gbase, rbase, p[m], e, h[m], f[m]);
     maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
     maxHH = (maxHH < h[m]) ? h[m] : maxHH;
     p[m] = h[m-1];

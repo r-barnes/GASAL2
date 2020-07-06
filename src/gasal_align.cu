@@ -357,7 +357,7 @@ void gasal_aln_async(
 
 	// here you can track the evolution of your data structure processing with the printer: gasal_host_batch_printall(current);
 
-	host_batch_t *current = gpu_storage.extensible_host_unpacked_query_batch;
+	const host_batch_t *current = gpu_storage.extensible_host_unpacked_query_batch;
 	for(;current;current = current->next){
 		gpu_storage.unpacked_query_batch.resize(current->data_size);
 		//gasal_host_batch_printall(current);
