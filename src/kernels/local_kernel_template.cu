@@ -34,7 +34,7 @@ __device__ int32_t compute_local_cell(
 
 
 
-__device__ void CORE_LOCAL_COMPUTE_START(
+__device__ void core_local_compute_start(
   const uint32_t gpac,
   const uint32_t rbase,
   int32_t p[9],
@@ -174,7 +174,7 @@ __device__ void compute_something(
     if (B==Bool::TRUE){
       bool override_second = (mv.HH_second < h[m]) && (mv.HH > h[m]);
       mv.XY_y_second = (override_second) ? gidx + (m-1) : mv.XY_y_second;
-      mv.HH_second = (override_second) ? h[m] : mv.HH_second;
+      mv.HH_second   = (override_second) ? h[m] : mv.HH_second;
     }
   }
   HD.x = h[m-1];
@@ -184,11 +184,96 @@ __device__ void compute_something(
   mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//end position on query_batch sequence corresponding to current maximum score
 
   if (B==Bool::TRUE){
-    mv.XY_x_second = (mv.prev_HH_second < mv.HH) ? ridx : mv.XY_x_second;
+    mv.XY_x_second    = (mv.prev_HH_second < mv.HH) ? ridx : mv.XY_x_second;
     mv.prev_HH_second = max(mv.HH_second, mv.prev_HH_second);
   }
   mv.prev_HH = max(mv.HH, mv.prev_HH);
   ridx++;
+}
+
+
+
+__device__ void find_start(
+  MaxValues mv,
+  uint32_t query_batch_regs,
+  uint32_t target_batch_regs,
+  uint32_t packed_target_batch_idx,
+  uint32_t packed_query_batch_idx,
+  short2 *global,
+  int32_t h[9],
+  int32_t f[9],
+  int32_t p[9],
+  int32_t ridx,
+  int32_t gidx,
+  uint32_t    *packed_query_batch,
+  uint32_t    *packed_target_batch,
+  gasal_res_t *device_res
+){
+  const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  const short2 initHD = make_short2(0, 0);
+
+  int32_t rend_pos = mv.XY_x; //end position on query_batch sequence
+  int32_t gend_pos = mv.XY_y; //end position on target_batch sequence
+  int32_t fwd_score = mv.HH;  // the computed score
+
+  //the index of 32-bit word containing the end position on query_batch sequence
+  int32_t rend_reg = ((rend_pos >> 3) + 1) < query_batch_regs ? ((rend_pos >> 3) + 1) : query_batch_regs;
+  //the index of 32-bit word containing to end position on target_batch sequence
+  int32_t gend_reg = ((gend_pos >> 3) + 1) < target_batch_regs ? ((gend_pos >> 3) + 1) : target_batch_regs;
+
+  packed_query_batch_idx += (rend_reg - 1);
+  packed_target_batch_idx += (gend_reg - 1);
+
+  mv.HH      = 0;
+  mv.prev_HH = 0;
+  mv.XY_x    = 0;
+  mv.XY_y    = 0;
+
+  for(int32_t i = 0; i < MAX_QUERY_LEN; i++) {
+    global[i] = initHD;
+  }
+  //------starting from the gend_reg and rend_reg, align the sequences in the reverse direction and exit if the max score >= fwd_score------
+  gidx = ((gend_reg << 3) + 8) - 1;
+  for(int32_t i = 0; i < gend_reg && mv.HH < fwd_score; i++) {
+    for(int32_t m = 0; m < 9; m++) {
+        h[m] = 0;
+        f[m] = 0;
+        p[m] = 0;
+    }
+    register uint32_t gpac = packed_target_batch[packed_target_batch_idx - i];//load 8 packed bases from target_batch sequence
+    gidx = gidx - 8;
+    ridx = (rend_reg << 3) - 1;
+    int32_t global_idx = 0;
+    for(int32_t j = 0; j < rend_reg && mv.HH < fwd_score; j+=1) {
+      register uint32_t rpac =packed_query_batch[packed_query_batch_idx - j];//load 8 packed bases from query_batch sequence
+      //--------------compute a tile of 8x8 cells-------------------
+      for(int32_t k = 0; k <= 28 && mv.HH < fwd_score; k += 4) {
+        uint32_t rbase = (rpac >> k) & 0xF;//get a base from query_batch sequence
+        //----------load intermediate values--------------
+        auto HD = global[global_idx];
+        h[0] = HD.x;
+        auto e = HD.y;
+
+        #pragma unroll 8
+        for (int32_t l = 0, m = 1; l <= 28; l += 4, m++) {
+          core_local_compute_start(gpac,rbase,p,e,h,f,l,m,mv,gidx);
+        }
+
+        //------------save intermediate values----------------
+        HD.x = h[8];
+        HD.y = e;
+        global[global_idx] = HD;
+        //----------------------------------------------------
+        mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//start position on query_batch sequence corresponding to current maximum score
+        mv.prev_HH = max(mv.HH, mv.prev_HH);
+        ridx--;
+        global_idx++;
+      }
+    }
+  }
+
+  device_res->query_batch_start[tid] = mv.XY_x;//copy the start position on query_batch sequence to the output array in the GPU mem
+  device_res->target_batch_start[tid] = mv.XY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
 }
 
 
@@ -212,23 +297,22 @@ __global__ void gasal_local_kernel(
   int n_tasks
 ){
   const uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-
   if (tid >= n_tasks) return;
 
   MaxValues mv;
 
   int tile_no = 0;
 
-  int32_t ridx, gidx;
-  short2 HD;
-  short2 initHD = make_short2(0, 0);
+  int32_t ridx;
+  int32_t gidx;
+  const short2 initHD = make_short2(0, 0);
 
   uint32_t packed_target_batch_idx = target_batch_offsets[tid] >> 3; //starting index of the target_batch sequence
-  uint32_t packed_query_batch_idx = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
+  uint32_t packed_query_batch_idx  = query_batch_offsets[tid] >> 3;//starting index of the query_batch sequence
   uint32_t read_len = query_batch_lens[tid];
-  uint32_t ref_len = target_batch_lens[tid];
-  uint32_t query_batch_regs = (read_len >> 3) + (read_len&7 ? 1 : 0);//number of 32-bit words holding query_batch sequence
-  uint32_t target_batch_regs = (ref_len >> 3) + (ref_len&7 ? 1 : 0);//number of 32-bit words holding target_batch sequence
+  uint32_t ref_len  = target_batch_lens[tid];
+  uint32_t query_batch_regs  = (read_len >> 3) + (read_len%8!=0);//number of 32-bit words holding query_batch sequence
+  uint32_t target_batch_regs = (ref_len >> 3) + (ref_len%8!=0);//number of 32-bit words holding target_batch sequence
   //-----arrays for saving intermediate values------
   short2 global[MAX_QUERY_LEN];
   int32_t h[9];
@@ -290,71 +374,8 @@ __global__ void gasal_local_kernel(
     device_res_second->target_batch_end[tid] = mv.XY_y_second;
   }
 
-
   /*------------------Now to find the start position-----------------------*/
   if (S==CompStart::WITH_START){
-    int32_t rend_pos = mv.XY_x;//end position on query_batch sequence
-    int32_t gend_pos = mv.XY_y;//end position on target_batch sequence
-    int32_t fwd_score = mv.HH;// the computed score
-
-    //the index of 32-bit word containing the end position on query_batch sequence
-    int32_t rend_reg = ((rend_pos >> 3) + 1) < query_batch_regs ? ((rend_pos >> 3) + 1) : query_batch_regs;
-    //the index of 32-bit word containing to end position on target_batch sequence
-    int32_t gend_reg = ((gend_pos >> 3) + 1) < target_batch_regs ? ((gend_pos >> 3) + 1) : target_batch_regs;
-
-    packed_query_batch_idx += (rend_reg - 1);
-    packed_target_batch_idx += (gend_reg - 1);
-
-    mv.HH = 0;
-    mv.prev_HH = 0;
-    mv.XY_x = 0;
-    mv.XY_y = 0;
-
-    for(int32_t i = 0; i < MAX_QUERY_LEN; i++) {
-      global[i] = initHD;
-    }
-    //------starting from the gend_reg and rend_reg, align the sequences in the reverse direction and exit if the max score >= fwd_score------
-    gidx = ((gend_reg << 3) + 8) - 1;
-    for(int32_t i = 0; i < gend_reg && mv.HH < fwd_score; i++) {
-      for(int32_t m = 0; m < 9; m++) {
-          h[m] = 0;
-          f[m] = 0;
-          p[m] = 0;
-      }
-      register uint32_t gpac =packed_target_batch[packed_target_batch_idx - i];//load 8 packed bases from target_batch sequence
-      gidx = gidx - 8;
-      ridx = (rend_reg << 3) - 1;
-      int32_t global_idx = 0;
-      for(int32_t j = 0; j < rend_reg && mv.HH < fwd_score; j+=1) {
-        register uint32_t rpac =packed_query_batch[packed_query_batch_idx - j];//load 8 packed bases from query_batch sequence
-        //--------------compute a tile of 8x8 cells-------------------
-        for(int32_t k = 0; k <= 28 && mv.HH < fwd_score; k += 4) {
-          uint32_t rbase = (rpac >> k) & 0xF;//get a base from query_batch sequence
-          //----------load intermediate values--------------
-          HD = global[global_idx];
-          h[0] = HD.x;
-          auto e = HD.y;
-
-          int32_t l,m;
-          #pragma unroll 8
-          for (l = 0, m = 1; l <= 28; l += 4, m++) {
-            CORE_LOCAL_COMPUTE_START(gpac,rbase,p,e,h,f,l,m,mv,gidx);
-          }
-
-          //------------save intermediate values----------------
-          HD.x = h[m-1];
-          HD.y = e;
-          global[global_idx] = HD;
-          //----------------------------------------------------
-          mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//start position on query_batch sequence corresponding to current maximum score
-          mv.prev_HH = max(mv.HH, mv.prev_HH);
-          ridx--;
-          global_idx++;
-        }
-      }
-    }
-
-    device_res->query_batch_start[tid] = mv.XY_x;//copy the start position on query_batch sequence to the output array in the GPU mem
-    device_res->target_batch_start[tid] = mv.XY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
+    find_start(mv, query_batch_regs, target_batch_regs, packed_target_batch_idx, packed_query_batch_idx, global, h, f, p, ridx, gidx, packed_query_batch, packed_target_batch, device_res);
   }
 }
