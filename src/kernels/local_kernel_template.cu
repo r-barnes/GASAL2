@@ -1,5 +1,19 @@
 #pragma once
 
+struct MaxValues {
+  int32_t HH      = 0;
+  int32_t XY_x    = 0;
+  int32_t XY_y    = 0;
+  int32_t prev_HH = 0;
+
+  int32_t HH_second      = 0; //TODO: Drop "__attribute__((unused))"
+  int32_t XY_x_second    = 0; //TODO: Drop "__attribute__((unused))"
+  int32_t XY_y_second    = 0; //TODO: Drop "__attribute__((unused))"
+  int32_t prev_HH_second = 0; //TODO: Drop "__attribute__((unused))"
+};
+
+
+
 __device__ int32_t compute_local_cell(
   const uint32_t gbase,
   const uint32_t rbase,
@@ -18,6 +32,8 @@ __device__ int32_t compute_local_cell(
   return tmp_hm;
 }
 
+
+
 __device__ void CORE_LOCAL_COMPUTE_START(
   const uint32_t gpac,
   const uint32_t rbase,
@@ -27,14 +43,13 @@ __device__ void CORE_LOCAL_COMPUTE_START(
   int32_t f[9],
   const int32_t l,
   const int32_t m,
-  int32_t &maxXY_y,
-  int32_t &maxHH,
+  MaxValues &mv,
   const int32_t gidx
 ){
   uint32_t gbase = (gpac >> l) & 0xF;
   compute_local_cell(gbase, rbase, p[m], e, h[m], f[m]);
-  maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
-  maxHH   = (maxHH < h[m]) ? h[m] : maxHH;
+  mv.XY_y = (mv.HH < h[m]) ? gidx + (m-1) : mv.XY_y;
+  mv.HH   = (mv.HH < h[m]) ? h[m] : mv.HH;
   p[m] = h[m-1];
 }
 
@@ -49,8 +64,7 @@ __device__ void CORE_LOCAL_COMPUTE_TB(
   int32_t f[9],
   const int32_t l,
   const int32_t m,
-  int32_t &maxXY_y,
-  int32_t &maxHH,
+  MaxValues &mv,
   uint &direction_reg,
   const int32_t gidx
 ){
@@ -62,8 +76,8 @@ __device__ void CORE_LOCAL_COMPUTE_TB(
   direction_reg |= h[m] == tmp_hm ? m_or_x << (28 - ((m - 1) << 2)) : (h[m] == fm_old ? (uint32_t)3 << (28 - ((m - 1) << 2)) : (uint32_t)2 << (28 - ((m - 1) << 2)));
   direction_reg |= (tmp_hm - _cudaGapOE) > (fm_old - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (31 - ((m - 1) << 2));
   direction_reg |= (tmp_hm - _cudaGapOE) > (e_old - _cudaGapExtend) ?  (uint32_t)0 : (uint32_t)1 << (30 - ((m - 1) << 2));
-  maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
-  maxHH   = (maxHH < h[m]) ? h[m] : maxHH;
+  mv.XY_y = (mv.HH < h[m]) ? gidx + (m-1) : mv.XY_y;
+  mv.HH   = (mv.HH < h[m]) ? h[m] : mv.HH;
   p[m] = h[m-1];
 }
 
@@ -75,25 +89,22 @@ __device__ void compute_local_row(
   const uint32_t rbase,
   const int32_t  gidx,
   short   &e,
-  int32_t &maxXY_y,
-  int32_t &maxHH,
+  MaxValues &mv,
   int32_t h[9],
   int32_t f[9],
-  int32_t p[9],
-  int32_t &maxHH_second,
-  int32_t &maxXY_y_second
+  int32_t p[9]
 ){
   #pragma unroll 8
   for(int32_t l = 28, m = 1; m < 9; l -= 4, m++) {
     const uint32_t gbase = (gpac >> l) & 0xF;
     compute_local_cell(gbase, rbase, p[m], e, h[m], f[m]);
-    maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
-    maxHH = (maxHH < h[m]) ? h[m] : maxHH;
+    mv.XY_y = (mv.HH < h[m]) ? gidx + (m-1) : mv.XY_y;
+    mv.HH = (mv.HH < h[m]) ? h[m] : mv.HH;
     p[m] = h[m-1];
     if (B==Bool::TRUE){
-      const bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
-      maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
-      maxHH_second = (override_second) ? h[m] : maxHH_second;
+      const bool override_second = (mv.HH_second < h[m]) && (mv.HH > h[m]);
+      mv.XY_y_second = (override_second) ? gidx + (m-1) : mv.XY_y_second;
+      mv.HH_second = (override_second) ? h[m] : mv.HH_second;
     }
   }
 }
@@ -107,17 +118,10 @@ __device__ void compute_local_block(
   const uint32_t rpac,
   int32_t  &ridx,
   const int32_t  gidx,
-  int32_t &maxXY_x,
-  int32_t &maxXY_y,
-  int32_t &prev_maxHH,
-  int32_t &maxHH,
+  MaxValues &mv,
   int32_t h[9],
   int32_t f[9],
-  int32_t p[9],
-  int32_t &prev_maxHH_second,
-  int32_t &maxHH_second,
-  int32_t &maxXY_x_second,
-  int32_t &maxXY_y_second
+  int32_t p[9]
 ){
   for (int32_t k = 28; k >= 0; k -= 4) {
     const uint32_t rbase = (rpac >> k) & 0xF; //Get a column from the query sequence
@@ -125,20 +129,20 @@ __device__ void compute_local_block(
     //-----load intermediate values--------------
     short2 HD = global[ridx];
     h[0] = HD.x;
-    compute_local_row<B>(gpac, rbase, gidx, HD.y, maxXY_y, maxHH, h, f, p, maxHH_second, maxXY_y_second);
+    compute_local_row<B>(gpac, rbase, gidx, HD.y, mv, h, f, p);
     //----------save intermediate values------------
     HD.x = h[8];
     global[ridx] = HD;
     //---------------------------------------------
 
-    maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
+    mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//end position on query_batch sequence corresponding to current maximum score
 
     if (B==Bool::TRUE)
     {
-      maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
-      prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
+      mv.XY_x_second = (mv.prev_HH_second < mv.HH) ? ridx : mv.XY_x_second;
+      mv.prev_HH_second = max(mv.HH_second, mv.prev_HH_second);
     }
-    prev_maxHH = max(maxHH, prev_maxHH);
+    mv.prev_HH = max(mv.HH, mv.prev_HH);
     ridx++;
   }
 }
@@ -156,15 +160,8 @@ __device__ void compute_something(
   int32_t p[9],
   int32_t h[9],
   int32_t f[9],
-  int32_t &maxXY_x,
-  int32_t &maxXY_y,
-  int32_t &prev_maxHH,
-  int32_t &maxHH,
+  MaxValues &mv,
   const int32_t gidx,
-  int32_t &prev_maxHH_second,
-  int32_t &maxHH_second,
-  int32_t &maxXY_x_second,
-  int32_t &maxXY_y_second,
   uint &direction
 ){
   uint32_t rbase = (rpac >> rpac_shift) & 0xF;//get a base from query_batch sequence
@@ -173,36 +170,26 @@ __device__ void compute_something(
   auto e = HD.y;
   int32_t l, m;
   for (l = 28, m = 1; m < 9; l -= 4, m++) {
-    CORE_LOCAL_COMPUTE_TB(gpac, rbase, p, e, h, f, l, m, maxXY_y, maxHH, direction, gidx);
+    CORE_LOCAL_COMPUTE_TB(gpac, rbase, p, e, h, f, l, m, mv, direction, gidx);
     if (B==Bool::TRUE){
-      bool override_second = (maxHH_second < h[m]) && (maxHH > h[m]);
-      maxXY_y_second = (override_second) ? gidx + (m-1) : maxXY_y_second;
-      maxHH_second = (override_second) ? h[m] : maxHH_second;
+      bool override_second = (mv.HH_second < h[m]) && (mv.HH > h[m]);
+      mv.XY_y_second = (override_second) ? gidx + (m-1) : mv.XY_y_second;
+      mv.HH_second = (override_second) ? h[m] : mv.HH_second;
     }
   }
   HD.x = h[m-1];
   HD.y = e;
   global[ridx] = HD;
 
-  maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//end position on query_batch sequence corresponding to current maximum score
+  mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//end position on query_batch sequence corresponding to current maximum score
 
   if (B==Bool::TRUE){
-    maxXY_x_second = (prev_maxHH_second < maxHH) ? ridx : maxXY_x_second;
-    prev_maxHH_second = max(maxHH_second, prev_maxHH_second);
+    mv.XY_x_second = (mv.prev_HH_second < mv.HH) ? ridx : mv.XY_x_second;
+    mv.prev_HH_second = max(mv.HH_second, mv.prev_HH_second);
   }
-  prev_maxHH = max(maxHH, prev_maxHH);
+  mv.prev_HH = max(mv.HH, mv.prev_HH);
   ridx++;
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -228,19 +215,9 @@ __global__ void gasal_local_kernel(
 
   if (tid >= n_tasks) return;
 
-  int32_t maxHH = 0; //initialize the maximum score to zero
-  int32_t maxXY_y = 0;
-
-  int32_t prev_maxHH = 0;
-  int32_t maxXY_x = 0;
+  MaxValues mv;
 
   int tile_no = 0;
-
-  // __attribute__((unused)) to avoid raising errors at compilation. most template-kernels don't use these.
-  int32_t maxHH_second      __attribute__((unused)) = 0;
-  int32_t prev_maxHH_second __attribute__((unused)) = 0;
-  int32_t maxXY_x_second    __attribute__((unused)) = 0;
-  int32_t maxXY_y_second    __attribute__((unused)) = 0;
 
   int32_t ridx, gidx;
   short2 HD;
@@ -280,45 +257,45 @@ __global__ void gasal_local_kernel(
       if (S==CompStart::WITH_TB) {
         uint4 direction = make_uint4(0, 0, 0, 0);
 
-        compute_something<B>(rpac, 28, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.x);
-        compute_something<B>(rpac, 24, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.y);
-        compute_something<B>(rpac, 20, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.z);
-        compute_something<B>(rpac, 16, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.w);
+        compute_something<B>(rpac, 28, gpac, global, ridx, p, h, f, mv, gidx, direction.x);
+        compute_something<B>(rpac, 24, gpac, global, ridx, p, h, f, mv, gidx, direction.y);
+        compute_something<B>(rpac, 20, gpac, global, ridx, p, h, f, mv, gidx, direction.z);
+        compute_something<B>(rpac, 16, gpac, global, ridx, p, h, f, mv, gidx, direction.w);
 
         packed_tb_matrices[(tile_no*n_tasks) + tid] = direction;
         tile_no++;
 
         direction = make_uint4(0,0,0,0);
 
-        compute_something<B>(rpac, 12, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.x);
-        compute_something<B>(rpac,  8, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.y);
-        compute_something<B>(rpac,  4, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.z);
-        compute_something<B>(rpac,  0, gpac, global, ridx, p, h, f, maxXY_x, maxXY_y, prev_maxHH, maxHH, gidx, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second, direction.w);
+        compute_something<B>(rpac, 12, gpac, global, ridx, p, h, f, mv, gidx, direction.x);
+        compute_something<B>(rpac,  8, gpac, global, ridx, p, h, f, mv, gidx, direction.y);
+        compute_something<B>(rpac,  4, gpac, global, ridx, p, h, f, mv, gidx, direction.z);
+        compute_something<B>(rpac,  0, gpac, global, ridx, p, h, f, mv, gidx, direction.w);
 
         packed_tb_matrices[(tile_no*n_tasks) + tid] = direction;
         tile_no++;
       } else {
-        compute_local_block<B>(global, gpac, rpac, ridx, gidx, maxXY_x, maxXY_y, prev_maxHH, maxHH, h, f, p, prev_maxHH_second, maxHH_second, maxXY_x_second, maxXY_y_second);
+        compute_local_block<B>(global, gpac, rpac, ridx, gidx, mv, h, f, p);
       }
     }
   }
 
-  device_res->aln_score[tid] = maxHH;//copy the max score to the output array in the GPU mem
-  device_res->query_batch_end[tid] = maxXY_x;//copy the end position on query_batch sequence to the output array in the GPU mem
-  device_res->target_batch_end[tid] = maxXY_y;//copy the end position on target_batch sequence to the output array in the GPU mem
+  device_res->aln_score[tid] = mv.HH;//copy the max score to the output array in the GPU mem
+  device_res->query_batch_end[tid] = mv.XY_x;//copy the end position on query_batch sequence to the output array in the GPU mem
+  device_res->target_batch_end[tid] = mv.XY_y;//copy the end position on target_batch sequence to the output array in the GPU mem
 
   if (B==Bool::TRUE){
-    device_res_second->aln_score[tid] = maxHH_second;
-    device_res_second->query_batch_end[tid] = maxXY_x_second;
-    device_res_second->target_batch_end[tid] = maxXY_y_second;
+    device_res_second->aln_score[tid] = mv.HH_second;
+    device_res_second->query_batch_end[tid] = mv.XY_x_second;
+    device_res_second->target_batch_end[tid] = mv.XY_y_second;
   }
 
 
   /*------------------Now to find the start position-----------------------*/
   if (S==CompStart::WITH_START){
-    int32_t rend_pos = maxXY_x;//end position on query_batch sequence
-    int32_t gend_pos = maxXY_y;//end position on target_batch sequence
-    int32_t fwd_score = maxHH;// the computed score
+    int32_t rend_pos = mv.XY_x;//end position on query_batch sequence
+    int32_t gend_pos = mv.XY_y;//end position on target_batch sequence
+    int32_t fwd_score = mv.HH;// the computed score
 
     //the index of 32-bit word containing the end position on query_batch sequence
     int32_t rend_reg = ((rend_pos >> 3) + 1) < query_batch_regs ? ((rend_pos >> 3) + 1) : query_batch_regs;
@@ -328,17 +305,17 @@ __global__ void gasal_local_kernel(
     packed_query_batch_idx += (rend_reg - 1);
     packed_target_batch_idx += (gend_reg - 1);
 
-    maxHH = 0;
-    prev_maxHH = 0;
-    maxXY_x = 0;
-    maxXY_y = 0;
+    mv.HH = 0;
+    mv.prev_HH = 0;
+    mv.XY_x = 0;
+    mv.XY_y = 0;
 
     for(int32_t i = 0; i < MAX_QUERY_LEN; i++) {
       global[i] = initHD;
     }
     //------starting from the gend_reg and rend_reg, align the sequences in the reverse direction and exit if the max score >= fwd_score------
     gidx = ((gend_reg << 3) + 8) - 1;
-    for(int32_t i = 0; i < gend_reg && maxHH < fwd_score; i++) {
+    for(int32_t i = 0; i < gend_reg && mv.HH < fwd_score; i++) {
       for(int32_t m = 0; m < 9; m++) {
           h[m] = 0;
           f[m] = 0;
@@ -348,10 +325,10 @@ __global__ void gasal_local_kernel(
       gidx = gidx - 8;
       ridx = (rend_reg << 3) - 1;
       int32_t global_idx = 0;
-      for(int32_t j = 0; j < rend_reg && maxHH < fwd_score; j+=1) {
+      for(int32_t j = 0; j < rend_reg && mv.HH < fwd_score; j+=1) {
         register uint32_t rpac =packed_query_batch[packed_query_batch_idx - j];//load 8 packed bases from query_batch sequence
         //--------------compute a tile of 8x8 cells-------------------
-        for(int32_t k = 0; k <= 28 && maxHH < fwd_score; k += 4) {
+        for(int32_t k = 0; k <= 28 && mv.HH < fwd_score; k += 4) {
           uint32_t rbase = (rpac >> k) & 0xF;//get a base from query_batch sequence
           //----------load intermediate values--------------
           HD = global[global_idx];
@@ -361,7 +338,7 @@ __global__ void gasal_local_kernel(
           int32_t l,m;
           #pragma unroll 8
           for (l = 0, m = 1; l <= 28; l += 4, m++) {
-            CORE_LOCAL_COMPUTE_START(gpac,rbase,p,e,h,f,l,m,maxXY_y,maxHH,gidx);
+            CORE_LOCAL_COMPUTE_START(gpac,rbase,p,e,h,f,l,m,mv,gidx);
           }
 
           //------------save intermediate values----------------
@@ -369,15 +346,15 @@ __global__ void gasal_local_kernel(
           HD.y = e;
           global[global_idx] = HD;
           //----------------------------------------------------
-          maxXY_x = (prev_maxHH < maxHH) ? ridx : maxXY_x;//start position on query_batch sequence corresponding to current maximum score
-          prev_maxHH = max(maxHH, prev_maxHH);
+          mv.XY_x = (mv.prev_HH < mv.HH) ? ridx : mv.XY_x;//start position on query_batch sequence corresponding to current maximum score
+          mv.prev_HH = max(mv.HH, mv.prev_HH);
           ridx--;
           global_idx++;
         }
       }
     }
 
-    device_res->query_batch_start[tid] = maxXY_x;//copy the start position on query_batch sequence to the output array in the GPU mem
-    device_res->target_batch_start[tid] = maxXY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
+    device_res->query_batch_start[tid] = mv.XY_x;//copy the start position on query_batch sequence to the output array in the GPU mem
+    device_res->target_batch_start[tid] = mv.XY_y;//copy the start position on target_batch sequence to the output array in the GPU mem
   }
 }
