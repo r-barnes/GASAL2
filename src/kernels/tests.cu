@@ -1,6 +1,6 @@
 #pragma once
 
-__global__ void test_score_match(bool *d_good){
+__global__ void test_DEV_GET_SUB_SCORE_LOCAL(bool *d_good){
   *d_good = true;
 
   const uint32_t bases[5] = {'A' & 0xF, 'C' & 0xF, 'G' & 0xF, 'T' & 0xF};
@@ -26,3 +26,19 @@ __global__ void test_score_match(bool *d_good){
     #endif
   }
 }
+
+
+
+// __device__ void compute_local_cell(
+//   const uint32_t gbase,
+//   const uint32_t rbase,
+//   const int32_t  p,
+//   short   &e,
+//   int32_t &h,
+//   int32_t &f
+// ){
+
+
+// __global__ void test_compute_local_cell(){
+
+// }

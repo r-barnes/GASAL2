@@ -2,22 +2,6 @@
 
 #include <cstdint>
 
-//TODO: Destroy
-// __global__ void	gasal_reversecomplement_kernel(
-// 	uint32_t       *const packed_query_batch,
-// 	uint32_t       *const packed_target_batch,
-// 	const uint32_t *const query_batch_lens,
-// 	const uint32_t *const target_batch_lens,
-// 	const uint32_t *const query_batch_offsets,
-// 	const uint32_t *const target_batch_offsets,
-// 	const uint8_t  *const query_op,
-// 	const uint8_t  *const target_op,
-// 	const uint32_t        n_tasks
-// );
-
-
-
-
 //TODO: This is a really scary way of defining the numbers since we're only
 //choosing the bottom four bits but the letter range is larger. It seems to work
 //out by convenience.

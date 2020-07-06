@@ -26,7 +26,7 @@ __global__ void	new_reversecomplement_kernel(
 __host__ __device__ uint32_t complement_word(const uint32_t packed_word);
 __host__ __device__ uint32_t reverse_word(uint32_t word);
 __host__ __device__ uint8_t count_word_trailing_n(uint32_t word);
-__global__ void test_score_match(bool *d_good);
+__global__ void test_DEV_GET_SUB_SCORE_LOCAL(bool *d_good);
 
 
 /*
@@ -341,7 +341,7 @@ TEST_CASE("Score matching"){
   bool h_good=false;
   bool *d_good;
   cudaMalloc(&d_good, sizeof(bool));
-  test_score_match<<<1,1>>>(d_good);
+  test_DEV_GET_SUB_SCORE_LOCAL<<<1,1>>>(d_good);
   cudaMemcpy(&h_good, d_good, sizeof(bool), cudaMemcpyDeviceToHost);
   cudaFree(d_good);
   CHECK(h_good==true);
