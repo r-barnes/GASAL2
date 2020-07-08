@@ -75,7 +75,9 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 						//prev_hm_diff=curr_hm_diff;
 						h[m] = max(h[m], e);
 
-						FIND_MAX(h[m], gidx + (m-1))//the current maximum score and corresponding end position on target_batch sequence
+						//The current maximum score and corresponding end position on target_batch sequence
+						maxXY_y = (maxHH < h[m]) ? gidx + (m-1) : maxXY_y;
+						maxHH   = (maxHH < h[m]) ? h[m]         : maxHH;
 
 						p[m] = h[m-1];
 					}

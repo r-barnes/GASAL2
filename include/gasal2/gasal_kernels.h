@@ -36,9 +36,7 @@ __device__ int32_t DEV_GET_SUB_SCORE_LOCAL(const uint32_t rbase, const uint32_t 
 
 #endif
 
-#define FIND_MAX(curr, gidx) \
-	maxXY_y = (maxHH < curr) ? gidx : maxXY_y;\
-maxHH = (maxHH < curr) ? curr : maxHH;
+
 
 
 // Kernel files
