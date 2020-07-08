@@ -31,41 +31,10 @@ __global__ void gasal_banded_tiled_kernel(uint32_t *packed_query_batch, uint32_t
 	int32_t p[9];
  	const int32_t k_other_band_width = (target_batch_regs - (query_batch_regs - k_band_width));
 
-	//--------------------------------------------
-
-	// table of cells (don't use it with sequences larger than ~50 bases)
-	/*
-		#ifdef DEBUG
-		if (tid==0) {
-			for (j = 1; j <= query_batch_regs*8; j+=1) {
-				printf("%03d\t", j);
-				for (i = 1; i <= target_batch_regs*8; i++) {
-					int x = i;
-					int y = j;
-					if (y > k_band_width + x || x > y + (target_batch_regs*8 - (query_batch_regs*8 - k_band_width)))
-					{
-						printf("_");
-					} else {
-						printf("#");
-					}
-					if (i%8 == 0)
-						printf(" ");
-				}
-				printf("\n");
-				if (j%8 == 0)
-					printf("\n");
-
-			}
-		}
-		#endif
-	*/
-
-
 	//------------------------
 	for (i = 0; i < MAX_QUERY_LEN; i++) {
 		global[i] = initHD;
 	}
-
 
 	for (i = 0; i < target_batch_regs; i++) { //target_batch sequence in rows
 		for (m = 0; m < 9; m++) {
