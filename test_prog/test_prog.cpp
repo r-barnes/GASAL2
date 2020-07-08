@@ -130,7 +130,6 @@ void per_thread_processing(
       gpu_batch_arr_idx++;
     }
 
-    auto &this_batch = gpu_batch_arr[gpu_batch_arr_idx];
     auto &this_storage = *gpu_batch_arr[gpu_batch_arr_idx].gpu_storage;
 
     if (seqs_done < thread_n_seqs.at(thread_id) && gpu_batch_arr_idx < gpu_storage_vecs[thread_id].size()) {

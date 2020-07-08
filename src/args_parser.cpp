@@ -64,7 +64,7 @@ void Parameters::help() {
             std::cerr << "         -p        print the alignment results" << std::endl;
             std::cerr << "         -n INT    Number of threads ["<< n_threads<<"]" << std::endl;
             std::cerr << "         -y AL_TYPE       Alignment type . Must be \"local\", \"semi_global\", \"global\", \"ksw\" "  << std::endl;
-	    std::cerr << "         -x HEAD TAIL     specifies, for semi-global alignment, wha should be skipped for heads and tails of the sequences. (NONE, QUERY, TARGET, BOTH)" << std::endl;
+	        std::cerr << "         -x HEAD TAIL     specifies, for semi-global alignment, wha should be skipped for heads and tails of the sequences. (NONE, QUERY, TARGET, BOTH)" << std::endl;
             std::cerr << "         -k INT    Band width in case \"banded\" is selected."  << std::endl;
             std::cerr << "         --help, -h : displays this message." << std::endl;
             std::cerr << "         --second-best   displays second best score (WITHOUT_START only)." << std::endl;
@@ -115,8 +115,7 @@ void Parameters::parse() {
         {
             if (arg_cur.length() > 2)
                 failure(FailType::WRONG_ARG);
-            char param = arg_cur.at(1);
-            switch(param)
+            switch(arg_cur.at(1)) //Switch on the argument flag
             {
                 case 'y':
                     c++;
@@ -128,9 +127,11 @@ void Parameters::parse() {
                     else if (!arg_next.compare("global"))
                         algo = algo_type::GLOBAL;
                     else if (!arg_next.compare("ksw"))
-                    {
                         algo = algo_type::KSW;
-                    }
+                    else if (!arg_next.compare("banded"))
+                        algo = algo_type::BANDED;
+                    else
+                        throw std::runtime_error("Unrecognized alignment algorithm!");
                 break;
                 case 'a':
                     c++;
