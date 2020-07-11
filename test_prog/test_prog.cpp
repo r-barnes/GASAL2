@@ -313,15 +313,10 @@ int main(int argc, char **argv) {
 
   total_time.stop();
 
-  uint64_t total_cells = 0;
-  for(size_t i=0;i<input_data.a.sequences.size();i++){
-    total_cells += input_data.a.sequences.at(i).size()*input_data.b.sequences.at(i).size();
-  }
-
-  std::cerr<<"GCUPS = "<<((double)total_cells/(1e9)/(processing_time.getTime()/1000.0))<<std::endl;
+  std::cerr<<"GCUPS = "<<(input_data.total_cells_1_to_1()/(1e9)/processing_time.getSeconds())<<std::endl;
 
   std::cerr << std::endl << "Done" << std::endl;
-  fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.getTime());
+  fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.getSeconds());
 
   return 0;
 }
