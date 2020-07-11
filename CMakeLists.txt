@@ -85,6 +85,7 @@ add_executable(unittests
   unittests/test_main.cpp
   unittests/packing.cu
   unittests/test_timer.cpp
+  unittests/test_page_locked_string.cu
   unittests/test_read_fasta.cpp
 )
 target_link_libraries(unittests PRIVATE gasal2)

@@ -4,6 +4,7 @@
 #include <gasal2/gasal_align.h>
 #include <gasal2/gasal_kernels.h>
 #include <gasal2/host_batch.h>
+#include <gasal2/rutils.h>
 
 
 
@@ -301,7 +302,7 @@ void gasal_aln_async(
 		if (params.start_pos==CompStart::WITH_TB){
 			fprintf(stderr, "[GASAL WARNING:] actual_query_batch_bytes(%d) > Allocated HOST memory for CIGAR (gpu_max_query_batch_bytes=%d). Therefore, allocating %d bytes on the host (gpu_max_query_batch_bytes=%d). Performance may be lost if this is repeated many times.\n", actual_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes, gpu_storage.gpu_max_query_batch_bytes*i, gpu_storage.gpu_max_query_batch_bytes*i);
 			if (gpu_storage.host_res->cigar)CHECKCUDAERROR(cudaFreeHost(gpu_storage.host_res->cigar));
-			CHECKCUDAERROR(cudaHostAlloc(&(gpu_storage.host_res->cigar), gpu_storage.gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
+			gpu_storage.host_res->cigar = PageLockedMalloc<uint8_t>(gpu_storage.gpu_max_query_batch_bytes);
 		}
 	}
 
@@ -337,7 +338,7 @@ void gasal_aln_async(
 		gpu_storage.query_batch_offsets.resize(gpu_storage.gpu_max_n_alns);
 		gpu_storage.target_batch_offsets.resize(gpu_storage.gpu_max_n_alns);
 
-		CHECKCUDAERROR(cudaMalloc(&(gpu_storage.seed_scores), gpu_storage.gpu_max_n_alns * sizeof(uint32_t)));
+		gpu_storage.seed_scores = DeviceMalloc<uint32_t>(gpu_storage.gpu_max_n_alns);
 
 		gasal_res_destroy_device(gpu_storage.device_res, gpu_storage.device_cpy);
 		gpu_storage.device_cpy = gasal_res_new_device_cpy(gpu_storage.gpu_max_n_alns, params);

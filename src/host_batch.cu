@@ -2,6 +2,7 @@
 #include <gasal2/args_parser.h>
 #include <gasal2/interfaces.h>
 #include <gasal2/host_batch.h>
+#include <gasal2/rutils.h>
 
 #include <iostream>
 #include <string.h>
@@ -11,7 +12,7 @@
 host_batch_t *gasal_host_batch_new(uint32_t batch_bytes, uint32_t offset)
 {
 	auto *const res = new host_batch_t();
-	CHECKCUDAERROR(cudaHostAlloc(&(res->data), batch_bytes*sizeof(uint8_t), cudaHostAllocDefault));
+	res->data = PageLockedMalloc<uint8_t>(batch_bytes);
 	res->page_size = batch_bytes;
 	res->data_size = 0;
 	res->is_locked = 0;

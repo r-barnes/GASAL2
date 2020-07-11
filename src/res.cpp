@@ -1,6 +1,7 @@
 #include <gasal2/gasal.h>
 #include <gasal2/args_parser.h>
 #include <gasal2/res.h>
+#include <gasal2/rutils.h>
 
 #include <iostream>
 
@@ -8,7 +9,7 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 {
 	auto *const res = new gasal_res_t();
 
-	CHECKCUDAERROR(cudaHostAlloc(&(res->aln_score), max_n_alns * sizeof(int32_t),cudaHostAllocDefault));
+	res->aln_score = PageLockedMalloc<int32_t>(max_n_alns);
 
 	if (params.algo == algo_type::GLOBAL) {
 		res->query_batch_start = nullptr;
@@ -17,25 +18,26 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 		res->target_batch_end = nullptr;
 	} else {
 		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
-			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
-			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_start),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
-			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
-			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
+			res->query_batch_start  = PageLockedMalloc<int32_t>(max_n_alns);
+			res->target_batch_start = PageLockedMalloc<int32_t>(max_n_alns);
+			res->query_batch_end    = PageLockedMalloc<int32_t>(max_n_alns);
+			res->target_batch_end   = PageLockedMalloc<int32_t>(max_n_alns);
 
 		} else {
-			CHECKCUDAERROR(cudaHostAlloc(&(res->query_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
-			CHECKCUDAERROR(cudaHostAlloc(&(res->target_batch_end),max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
+			res->query_batch_end  = PageLockedMalloc<int32_t>(max_n_alns);
+			res->target_batch_end = PageLockedMalloc<int32_t>(max_n_alns);
 			res->query_batch_start = nullptr;
 			res->target_batch_start = nullptr;
 		}
 
 	}
 	if (params.start_pos == CompStart::WITH_TB) {
-		CHECKCUDAERROR(cudaHostAlloc(&(res->n_cigar_ops), max_n_alns * sizeof(uint32_t),cudaHostAllocDefault));
+		res->n_cigar_ops = PageLockedMalloc<uint32_t>(max_n_alns);
 	}
 
 	return res;
 }
+
 
 
 gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
@@ -57,12 +59,11 @@ gasal_res_t *gasal_res_new_device(gasal_res_t *device_cpy)
 
 
 
-
 gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &params)
 {
 	gasal_res_t *const res = new gasal_res_t();
 
-	CHECKCUDAERROR(cudaMalloc(&(res->aln_score), max_n_alns * sizeof(int32_t)));
+	res->aln_score = DeviceMalloc<int32_t>(max_n_alns);
 
 	if (params.algo == algo_type::GLOBAL) {
 		res->query_batch_start  = nullptr;
@@ -71,13 +72,13 @@ gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &par
 		res->target_batch_end   = nullptr;
 	} else {
 		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_start),  max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_start), max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),    max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),   max_n_alns * sizeof(uint32_t)));
+			res->query_batch_start  = DeviceMalloc<int32_t>(max_n_alns);
+			res->target_batch_start = DeviceMalloc<int32_t>(max_n_alns);
+			res->query_batch_end    = DeviceMalloc<int32_t>(max_n_alns);
+			res->target_batch_end   = DeviceMalloc<int32_t>(max_n_alns);
 		} else {
-			CHECKCUDAERROR(cudaMalloc(&(res->query_batch_end),    max_n_alns * sizeof(uint32_t)));
-			CHECKCUDAERROR(cudaMalloc(&(res->target_batch_end),   max_n_alns * sizeof(uint32_t)));
+			res->query_batch_end    = DeviceMalloc<int32_t>(max_n_alns);
+			res->target_batch_end   = DeviceMalloc<int32_t>(max_n_alns);
 
 			res->query_batch_start = nullptr;
 			res->target_batch_start = nullptr;

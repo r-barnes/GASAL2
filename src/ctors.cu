@@ -5,6 +5,7 @@
 #include <gasal2/res.h>
 #include <gasal2/ctors.h>
 #include <gasal2/interfaces.h>
+#include <gasal2/rutils.h>
 
 #include <cmath>
 
@@ -49,7 +50,7 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		if (params.algo == algo_type::KSW)
 		{
 			this_gpu_storage.host_seed_scores.resize(host_max_n_alns);
-			CHECKCUDAERROR(cudaMalloc(&(this_gpu_storage.seed_scores), host_max_n_alns * sizeof(uint32_t)));
+			this_gpu_storage.seed_scores = DeviceMalloc<uint32_t>(host_max_n_alns);
 		} else {
 			this_gpu_storage.seed_scores = NULL;
 		}
@@ -65,7 +66,7 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		this_gpu_storage.target_batch_offsets.resize(gpu_max_n_alns);
 
 		this_gpu_storage.host_res = gasal_res_new_host(host_max_n_alns, params);
-		if(params.start_pos == CompStart::WITH_TB) CHECKCUDAERROR(cudaHostAlloc(&(this_gpu_storage.host_res->cigar), gpu_max_query_batch_bytes * sizeof(uint8_t),cudaHostAllocDefault));
+		if(params.start_pos == CompStart::WITH_TB) this_gpu_storage.host_res->cigar = PageLockedMalloc<uint8_t>(gpu_max_query_batch_bytes);
 		this_gpu_storage.device_cpy = gasal_res_new_device_cpy(max_n_alns, params);
 		this_gpu_storage.device_res = gasal_res_new_device(this_gpu_storage.device_cpy);
 
