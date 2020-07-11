@@ -229,19 +229,8 @@ int main(int argc, char **argv) {
   const auto maximum_sequence_length = std::max(input_data.a.maximum_sequence_length, input_data.b.maximum_sequence_length);
   const auto total_seqs = input_data.a.headers.size();
 
-  #ifdef DEBUG
-    std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "Size of read batches are: query=" << input_data.a.total_sequence_bytes << ", target=" << input_data.b.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
-  #endif
-
-  #ifdef DEBUG
-    std::cerr << "[TEST_PROG DEBUG]: query, mod@id=";
-    for (size_t i = 0; i < total_seqs; i++){
-      if (input_data.a.modifiers.at(i) > 0)
-        std::cerr << +(input_data.a.modifiers.at(i)) << "@" << i << "| ";
-    }
-    std::cerr << std::endl;
-  #endif
+  std::cerr<<"Loaded sequences = "<<input_data.sequence_count()<<std::endl;
+  std::cerr<<"Max sequence length = "<<maximum_sequence_length<<std::endl;
 
   std::vector<int> thread_seqs_idx;
   std::vector<int> thread_n_seqs;
