@@ -16,7 +16,7 @@ const size_t NB_STREAMS = 2;
 #define STREAM_BATCH_SIZE 5000//ceil((double)target_seqs.size() / (double)(2 * 2))
 
 
-#define DEBUG
+// #define DEBUG
 
 //A struct to hold data structures of a stream
 struct gpu_batch{
@@ -47,8 +47,8 @@ void print_batch(
   auto &batch_storage = *batch.gpu_storage;
   #pragma omp critical
   for (int j=0, i = batch.batch_start; j < batch.n_seqs_batch; i++, j++) {
-    std::cout << "query_name="    << input_data.first.headers.at(i);
-    std::cout << "\ttarget_name=" << input_data.second.headers.at(i);
+    std::cout << "query_name="    << input_data.a.headers.at(i);
+    std::cout << "\ttarget_name=" << input_data.b.headers.at(i);
     std::cout << "\tscore=" << batch_storage.host_res->aln_score[j];
 
     if ((args.start_pos == CompStart::WITH_START || args.start_pos == CompStart::WITH_TB)
@@ -157,18 +157,18 @@ void per_thread_processing(
 
         query_batch_idx = gasal_host_batch_fill(this_storage,
                 query_batch_idx,
-                input_data.first.sequences.at(i).c_str(),
-                input_data.first.sequences.at(i).size(),
+                input_data.a.sequences.at(i).c_str(),
+                input_data.a.sequences.at(i).size(),
                 DataSource::QUERY);
 
         target_batch_idx = gasal_host_batch_fill(this_storage,
                 target_batch_idx,
-                input_data.second.sequences.at(i).c_str(),
-                input_data.second.sequences.at(i).size(),
+                input_data.b.sequences.at(i).c_str(),
+                input_data.b.sequences.at(i).size(),
                 DataSource::TARGET);
 
-        this_storage.host_query_batch_lens[j] = input_data.first.sequences.at(i).size();
-        this_storage.host_target_batch_lens[j] = input_data.second.sequences.at(i).size();
+        this_storage.host_query_batch_lens[j] = input_data.a.sequences.at(i).size();
+        this_storage.host_target_batch_lens[j] = input_data.b.sequences.at(i).size();
       }
 
       #ifdef DEBUG
@@ -177,8 +177,8 @@ void per_thread_processing(
       #endif
 
       // Here, we fill the operations arrays for the current batch to be processed by the stream
-      gasal_op_fill(this_storage.host_query_op, input_data.first.modifiers.data() + seqs_done - j, j);
-      gasal_op_fill(this_storage.host_target_op, input_data.second.modifiers.data() + seqs_done - j, j);
+      gasal_op_fill(this_storage.host_query_op, input_data.a.modifiers.data() + seqs_done - j, j);
+      gasal_op_fill(this_storage.host_target_op, input_data.b.modifiers.data() + seqs_done - j, j);
 
       gpu_batch_arr[gpu_batch_arr_idx].n_seqs_batch = j;
       uint32_t query_batch_bytes = query_batch_idx;
@@ -226,19 +226,19 @@ int main(int argc, char **argv) {
     args.target_batch_fasta_filename
   );
 
-  const auto maximum_sequence_length = std::max(input_data.first.maximum_sequence_length, input_data.second.maximum_sequence_length);
-  const auto total_seqs = input_data.first.headers.size();
+  const auto maximum_sequence_length = std::max(input_data.a.maximum_sequence_length, input_data.b.maximum_sequence_length);
+  const auto total_seqs = input_data.a.headers.size();
 
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "Size of read batches are: query=" << input_data.first.total_sequence_bytes << ", target=" << input_data.second.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
+    std::cerr << "Size of read batches are: query=" << input_data.a.total_sequence_bytes << ", target=" << input_data.b.total_sequence_bytes << ". maximum_sequence_length=" << maximum_sequence_length << std::endl;
   #endif
 
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: query, mod@id=";
     for (size_t i = 0; i < total_seqs; i++){
-      if (input_data.first.modifiers.at(i) > 0)
-        std::cerr << +(input_data.first.modifiers.at(i)) << "@" << i << "| ";
+      if (input_data.a.modifiers.at(i) > 0)
+        std::cerr << +(input_data.a.modifiers.at(i)) << "@" << i << "| ";
     }
     std::cerr << std::endl;
   #endif
@@ -289,14 +289,14 @@ int main(int argc, char **argv) {
     */
     //initializing the streams by allocating the required CPU and GPU memory
     // note: the calculations of the detailed sizes to allocate could be done on the library side (to hide it from the user's perspective)
-    gasal_init_streams(gpu_storage_vecs[z], (input_data.first.maximum_sequence_length + 7),
+    gasal_init_streams(gpu_storage_vecs[z], (input_data.a.maximum_sequence_length + 7),
             (maximum_sequence_length + 7) ,
              STREAM_BATCH_SIZE, //device
              args);
   }
   #ifdef DEBUG
     std::cerr << "[TEST_PROG DEBUG]: ";
-    std::cerr << "size of host_unpack_query is " << (input_data.first.total_sequence_bytes +7*total_seqs) / (NB_STREAMS) << std::endl ;
+    std::cerr << "size of host_unpack_query is " << (input_data.a.total_sequence_bytes +7*total_seqs) / (NB_STREAMS) << std::endl ;
   #endif
 
   Timer processing_time;
@@ -314,8 +314,8 @@ int main(int argc, char **argv) {
   total_time.stop();
 
   uint64_t total_cells = 0;
-  for(size_t i=0;i<input_data.first.sequences.size();i++){
-    total_cells += input_data.first.sequences.at(i).size()*input_data.second.sequences.at(i).size();
+  for(size_t i=0;i<input_data.a.sequences.size();i++){
+    total_cells += input_data.a.sequences.at(i).size()*input_data.b.sequences.at(i).size();
   }
 
   std::cerr<<"GCUPS = "<<((double)total_cells/(1e9)/(processing_time.getTime()/1000.0))<<std::endl;

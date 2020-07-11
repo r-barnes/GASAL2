@@ -62,6 +62,8 @@ enum class operation_on_seq{
 	REVERSE_COMPLEMENT,
 };
 
+
+
 // data structure of linked list to allow extension of memory on host side.
 struct host_batch{
 	uint8_t *data = nullptr;
@@ -73,6 +75,8 @@ struct host_batch{
 };
 typedef struct host_batch host_batch_t;
 
+
+
 // Data structure to hold results. Can be instantiated for host or device memory (see res.cpp)
 struct gasal_res_t {
 	int32_t *aln_score = nullptr;
@@ -83,6 +87,8 @@ struct gasal_res_t {
 	uint8_t *cigar = nullptr;
 	uint32_t *n_cigar_ops = nullptr;
 };
+
+
 
 //stream data
 struct gasal_gpu_storage_t {
@@ -139,8 +145,12 @@ struct gasal_gpu_storage_t {
 	int id; //this can be useful in cases where a gasal_gpu_storage only contains PARTS of an alignment (like a seed-extension...), to gather results.
 };
 
+
+
 //vector of streams
 typedef std::vector<gasal_gpu_storage_t> gasal_gpu_storage_v;
+
+
 
 //match/mismatch and gap penalties
 typedef struct{

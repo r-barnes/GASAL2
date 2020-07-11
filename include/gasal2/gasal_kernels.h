@@ -2,9 +2,6 @@
 
 #include <cstdint>
 
-// Template-meta-programming types construction from Int values
-// This allows to cut down kernel code at compilation time.
-
 __constant__ int32_t _cudaGapO;          // gap open penalty
 __constant__ int32_t _cudaGapOE;         // sum of gap open and extension penalties
 __constant__ int32_t _cudaGapExtend;     // sum of gap extend
@@ -36,11 +33,7 @@ __device__ int32_t DEV_GET_SUB_SCORE_LOCAL(const uint32_t rbase, const uint32_t 
 
 #endif
 
-
-
-
 // Kernel files
-
 #include "kernels/banded.cu"
 #include "kernels/get_tb.cu"
 #include "kernels/global.cu"

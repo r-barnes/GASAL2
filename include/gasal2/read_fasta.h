@@ -9,9 +9,15 @@ struct FastaInput {
   std::vector<uint8_t>     modifiers;
   size_t maximum_sequence_length = 0;
   size_t total_sequence_bytes    = 0;
+  size_t sequence_count() const;
 };
 
-typedef std::pair<FastaInput,FastaInput> FastaPair;
+struct FastaPair {
+  FastaInput a;
+  FastaInput b;
+  uint64_t total_cells_1_to_1() const;
+  size_t sequence_count() const;
+};
 
 FastaInput ReadFasta(const std::string &filename);
 

@@ -10,15 +10,17 @@ TEST_CASE("No fasta file"){
 //TODO: Test for modifiers reading correctly
 TEST_CASE("Read Fasta"){
   FastaInput fasta;
-  CHECK_NOTHROW(fasta=ReadFasta("test.fasta"));
+  CHECK_NOTHROW(fasta=ReadFasta("target_batch.fasta"));
 
-  CHECK(fasta.sequences.size()==200);
-  CHECK(fasta.modifiers.size()==200);
-  CHECK(fasta.headers.size()==200);
-  CHECK(fasta.maximum_sequence_length==150);
-  CHECK(fasta.sequences.at(5)=="TTGAGACCAGCTTGGGCAACATAGCGAGACACCGTCTCTCCAAAAAAATAACAAATAGTGGGGCGTGATGGCGCGCTCCTGTAGTCTCAGCTACTTGGGCGGTCGCGATGGGAGGATCGATCGAGTCTGGGAGGTCGAGGCTGCAGTGAG");
+  CHECK(fasta.sequences.size()==20'000);
+  CHECK(fasta.modifiers.size()==20'000);
+  CHECK(fasta.headers.size()==20'000);
+  CHECK(fasta.maximum_sequence_length==277);
+  CHECK(fasta.sequence_count()==20'000);
+  CHECK(fasta.sequences.at(5)=="TGGGATTAAAGATCCTGGACCGTGGCCAGGCGCGGCGGCTCAAGCCTGTAATCCCAGCGATCAGGGAGGCCGCCGCGGGAGGATTGCTTGAGCCCAGGAGTTTGAGACCAGCTTGGGCAACATAGCGAGACACCGTCTCTACAAAAAAATAACAAATAGTGGGGCGTGATGGCGCGCGCCTGTAGTCTCAGCTACTTGGGCGGTCGAGATGGGAGGATCGATCGAGTCTGGGAGGTCGAGGCTGCAGTGAGC");
 }
 
 TEST_CASE("Read Pair"){
-  CHECK_NOTHROW(ReadFastaQueryTargetPair("test.fasta", "test.fasta"));
+  const auto input_data = ReadFastaQueryTargetPair("query_batch.fasta", "target_batch.fasta");
+  CHECK(input_data.sequence_count()==20'000);
 }

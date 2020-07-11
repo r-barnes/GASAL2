@@ -1,6 +1,7 @@
 #include <gasal2/read_fasta.h>
 
 #include <algorithm>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -77,13 +78,31 @@ FastaInput ReadFasta(const std::string &filename){
 
 
 
-std::pair<FastaInput,FastaInput> ReadFastaQueryTargetPair(const std::string &query, const std::string &target){
-  std::pair<FastaInput,FastaInput> ret;
-  ret.first = ReadFasta(query);
-  ret.second = ReadFasta(target);
+FastaPair ReadFastaQueryTargetPair(const std::string &query, const std::string &target){
+  FastaPair ret;
+  ret.a = ReadFasta(query);
+  ret.b = ReadFasta(target);
 
-  if(ret.first.headers.size()!=ret.second.headers.size())
+  if(ret.a.sequences.size()!=ret.b.sequences.size())
     throw std::runtime_error("Query and Target files were not the same length!");
 
   return ret;
+}
+
+
+size_t FastaInput::sequence_count() const {
+  return sequences.size();
+}
+
+uint64_t FastaPair::total_cells_1_to_1() const {
+  uint64_t count = 0;
+  for(size_t i=0;i<a.sequence_count();i++){
+    count += a.sequences.at(i).size()*b.sequences.at(i).size();
+  }
+  return count;
+}
+
+size_t FastaPair::sequence_count() const {
+  assert(a.sequence_count()==b.sequence_count());
+  return a.sequence_count();
 }
