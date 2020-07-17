@@ -1,0 +1,3 @@
+[submodule "submodules/rhgb"]
+	path = submodules/rhgb
+	url = https://github.com/r-barnes/rhgb.git
