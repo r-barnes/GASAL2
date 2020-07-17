@@ -1,7 +1,8 @@
 #include <gasal2/gasal.h>
 #include <gasal2/args_parser.h>
 #include <gasal2/res.h>
-#include <gasal2/rutils.h>
+
+#include <rhgb/memory.hpp>
 
 #include <iostream>
 

@@ -4,7 +4,8 @@
 #include <gasal2/gasal_align.h>
 #include <gasal2/gasal_kernels.h>
 #include <gasal2/host_batch.h>
-#include <gasal2/rutils.h>
+
+#include <rhgb/memory.hpp>
 
 
 

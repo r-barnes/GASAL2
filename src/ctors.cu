@@ -5,7 +5,8 @@
 #include <gasal2/res.h>
 #include <gasal2/ctors.h>
 #include <gasal2/interfaces.h>
-#include <gasal2/rutils.h>
+
+#include <rhgb/memory.hpp>
 
 #include <cmath>
 

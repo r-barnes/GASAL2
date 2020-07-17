@@ -22,16 +22,18 @@ else()
   )
 endif()
 
+add_subdirectory(submodules/rhgb EXCLUDE_FROM_ALL)
+
 add_library(gasal2
   src/args_parser.cpp
   src/ctors.cu
   src/gasal_align.cu
   src/host_batch.cu
   src/interfaces.cpp
-  src/read_fasta.cpp
   src/res.cpp
 )
 target_include_directories(gasal2 PUBLIC include src)
+target_link_libraries(gasal2 PUBLIC rhgb)
 # set_target_properties(gasal2 PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # set_target_properties(gasal2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
@@ -84,9 +86,6 @@ execute_process(
 add_executable(unittests
   unittests/test_main.cpp
   unittests/packing.cu
-  unittests/test_timer.cpp
-  unittests/test_page_locked_string.cu
-  unittests/test_read_fasta.cpp
 )
 target_link_libraries(unittests PRIVATE gasal2)
 

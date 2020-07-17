@@ -2,7 +2,8 @@
 #include <gasal2/args_parser.h>
 #include <gasal2/interfaces.h>
 #include <gasal2/host_batch.h>
-#include <gasal2/rutils.h>
+
+#include <rhgb/memory.hpp>
 
 #include <iostream>
 #include <string.h>
