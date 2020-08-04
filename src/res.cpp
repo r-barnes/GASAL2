@@ -12,24 +12,13 @@ gasal_res_t *gasal_res_new_host(uint32_t max_n_alns, const Parameters &params)
 
 	res->aln_score = albp::PageLockedMalloc<int32_t>(max_n_alns);
 
-	if (params.algo == algo_type::GLOBAL) {
-		res->query_batch_start = nullptr;
-		res->target_batch_start = nullptr;
-		res->query_batch_end = nullptr;
-		res->target_batch_end = nullptr;
-	} else {
+	if (params.algo != algo_type::GLOBAL){
 		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
 			res->query_batch_start  = albp::PageLockedMalloc<int32_t>(max_n_alns);
 			res->target_batch_start = albp::PageLockedMalloc<int32_t>(max_n_alns);
-			res->query_batch_end    = albp::PageLockedMalloc<int32_t>(max_n_alns);
-			res->target_batch_end   = albp::PageLockedMalloc<int32_t>(max_n_alns);
-
-		} else {
-			res->query_batch_end  = albp::PageLockedMalloc<int32_t>(max_n_alns);
-			res->target_batch_end = albp::PageLockedMalloc<int32_t>(max_n_alns);
-			res->query_batch_start = nullptr;
-			res->target_batch_start = nullptr;
 		}
+		res->query_batch_end  = albp::PageLockedMalloc<int32_t>(max_n_alns);
+		res->target_batch_end = albp::PageLockedMalloc<int32_t>(max_n_alns);
 
 	}
 	if (params.start_pos == CompStart::WITH_TB) {
@@ -66,24 +55,13 @@ gasal_res_t *gasal_res_new_device_cpy(uint32_t max_n_alns, const Parameters &par
 
 	res->aln_score = albp::DeviceMalloc<int32_t>(max_n_alns);
 
-	if (params.algo == algo_type::GLOBAL) {
-		res->query_batch_start  = nullptr;
-		res->target_batch_start = nullptr;
-		res->query_batch_end    = nullptr;
-		res->target_batch_end   = nullptr;
-	} else {
+	if (params.algo != algo_type::GLOBAL) {
 		if (params.start_pos == CompStart::WITH_START || params.start_pos == CompStart::WITH_TB) {
 			res->query_batch_start  = albp::DeviceMalloc<int32_t>(max_n_alns);
 			res->target_batch_start = albp::DeviceMalloc<int32_t>(max_n_alns);
-			res->query_batch_end    = albp::DeviceMalloc<int32_t>(max_n_alns);
-			res->target_batch_end   = albp::DeviceMalloc<int32_t>(max_n_alns);
-		} else {
-			res->query_batch_end    = albp::DeviceMalloc<int32_t>(max_n_alns);
-			res->target_batch_end   = albp::DeviceMalloc<int32_t>(max_n_alns);
-
-			res->query_batch_start = nullptr;
-			res->target_batch_start = nullptr;
 		}
+		res->query_batch_end  = albp::DeviceMalloc<int32_t>(max_n_alns);
+		res->target_batch_end = albp::DeviceMalloc<int32_t>(max_n_alns);
 	}
 
 	return res;
