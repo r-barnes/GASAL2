@@ -6,7 +6,7 @@
 #include <gasal2/ctors.h>
 #include <gasal2/interfaces.h>
 
-#include <rhgb/memory.hpp>
+#include <albp/memory.hpp>
 
 #include <cmath>
 
@@ -51,7 +51,7 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		if (params.algo == algo_type::KSW)
 		{
 			this_gpu_storage.host_seed_scores.resize(host_max_n_alns);
-			this_gpu_storage.seed_scores = DeviceMalloc<uint32_t>(host_max_n_alns);
+			this_gpu_storage.seed_scores = albp::DeviceMalloc<uint32_t>(host_max_n_alns);
 		} else {
 			this_gpu_storage.seed_scores = NULL;
 		}
@@ -67,7 +67,7 @@ void gasal_init_streams(gasal_gpu_storage_v &gpu_storage_vec,  int max_query_len
 		this_gpu_storage.target_batch_offsets.resize(gpu_max_n_alns);
 
 		this_gpu_storage.host_res = gasal_res_new_host(host_max_n_alns, params);
-		if(params.start_pos == CompStart::WITH_TB) this_gpu_storage.host_res->cigar = PageLockedMalloc<uint8_t>(gpu_max_query_batch_bytes);
+		if(params.start_pos == CompStart::WITH_TB) this_gpu_storage.host_res->cigar = albp::PageLockedMalloc<uint8_t>(gpu_max_query_batch_bytes);
 		this_gpu_storage.device_cpy = gasal_res_new_device_cpy(max_n_alns, params);
 		this_gpu_storage.device_res = gasal_res_new_device(this_gpu_storage.device_cpy);
 

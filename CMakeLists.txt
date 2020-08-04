@@ -22,7 +22,7 @@ else()
   )
 endif()
 
-add_subdirectory(submodules/rhgb EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/alignment_boilerplate EXCLUDE_FROM_ALL)
 
 add_library(gasal2
   src/args_parser.cpp
@@ -33,7 +33,7 @@ add_library(gasal2
   src/res.cpp
 )
 target_include_directories(gasal2 PUBLIC include src)
-target_link_libraries(gasal2 PUBLIC rhgb)
+target_link_libraries(gasal2 PUBLIC albp)
 # set_target_properties(gasal2 PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # set_target_properties(gasal2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 

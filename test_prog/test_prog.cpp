@@ -1,14 +1,14 @@
 #include <gasal2/gasal_header.h>
 #include <gasal2/Timer.h>
 
-#include <rhgb/read_fasta.hpp>
+#include <albp/read_fasta.hpp>
 
 #include <cmath>
 #include <iostream>
 #include <omp.h>
 #include <vector>
 
-using namespace rhgb;
+using namespace albp;
 
 const size_t NB_STREAMS = 2;
 
