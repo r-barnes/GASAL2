@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 project(gasal2 LANGUAGES CUDA CXX)
 
 find_package(OpenMP REQUIRED)
+find_package(CUDA REQUIRED)
 
 #TODO: Probably remove this before release since a standard user won't recompile
 #many times
@@ -32,8 +33,8 @@ add_library(gasal2
   src/interfaces.cpp
   src/res.cpp
 )
-target_include_directories(gasal2 PUBLIC include src)
-target_link_libraries(gasal2 PUBLIC albp)
+target_include_directories(gasal2 PUBLIC include src ${CUDA_INCLUDE_DIRS})
+target_link_libraries(gasal2 PUBLIC albp ${CUDA_LIBRARIES})
 # set_target_properties(gasal2 PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 # set_target_properties(gasal2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
