@@ -7,6 +7,7 @@
 
 #include <albp/memory.hpp>
 
+#include <stdexcept>
 
 
 /*  ####################################################################################
@@ -60,6 +61,7 @@
 
 #define SWITCH_LOCAL(a,s,h,t,b)                                                      \
   case s: {                                                                          \
+	  if(BLOCKDIM!=128) throw std::runtime_error("BLOCKDIM must be 128!");             \
     gasal_local_kernel<s, b><<<N_BLOCKS, BLOCKDIM, 0, gpu_storage.str>>>(            \
       thrust::raw_pointer_cast(gpu_storage.packed_query_batch.data()),               \
       thrust::raw_pointer_cast(gpu_storage.packed_target_batch.data()),              \

@@ -1,10 +1,12 @@
 #include <gasal2/gasal_header.h>
-#include <gasal2/Timer.h>
 
+#include <albp/cli_options.hpp>
 #include <albp/read_fasta.hpp>
+#include <albp/timer.hpp>
 
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <omp.h>
 #include <vector>
 
@@ -208,10 +210,49 @@ void per_thread_processing(
 
 
 int main(int argc, char **argv) {
-  //gasal_set_device(GPU_SELECT);
+  //gasal_set_device(GPU_SELECT); //TODO
 
-  Parameters args(argc, argv);
-  args.parse();
+  Timer total_time;
+  total_time.start();
+
+  CLI::App app("GASAL2\n\n(Single-pack multi-Parameters (e.g. -sp) is not supported.)");
+  Parameters args;
+  std::string query_file;
+  std::string reference_file;
+  app.add_option("query_file", args.query_batch_fasta_filename,  "Query filename"       )->required();
+  app.add_option("ref_file",   args.target_batch_fasta_filename, "Reference filename"   )->required();
+  app.add_option("-a",         args.match_score,                 "Match score"          )->default_val(1);
+  app.add_option("-b",         args.mismatch_score,              "Mismatch score"       )->default_val(4);
+  app.add_option("-q",         args.gap_open_score,              "Gap open penalty"     )->default_val(6);
+  app.add_option("-r",         args.gap_ext_score,               "Gap extension penalty")->default_val(1);
+  app.add_option("-n",         args.n_threads,                   "Number of threads"    )->default_val(1);  app.add_flag_function("-s", [&](int){ args.start_pos = CompStart::WITH_START; }, "Find the start position");
+  app.add_flag(  "-p",         args.print_out,                   "Print the alignment results");
+  app.add_flag_function("-t", [&](int){ args.start_pos = CompStart::WITH_TB;    }, "Comptue traceback. With this option enabled, '-s' has no effect as start position will always be computed with traceback.");
+
+
+  const std::map<std::string, algo_type> algo_map {
+    {"local",       algo_type::LOCAL      },
+    {"semi_global", algo_type::SEMI_GLOBAL},
+    {"ksw",         algo_type::KSW        },
+    {"banded",      algo_type::BANDED     }
+  };
+  app.add_option("-y", args.algo, "Alignment type. Must be local, semi_global, global, or ksw")->transform(CLI::CheckedTransformer(algo_map, CLI::ignore_case));
+
+  const std::map<std::string, DataSource> ds_map {
+    {"none",   DataSource::NONE  },
+    {"query",  DataSource::QUERY },
+    {"target", DataSource::TARGET},
+    {"both",   DataSource::BOTH  }
+  };
+  app.add_option("-x,--head", args.semiglobal_skipping_head, "Specifies, for semi-global alignment, what should be skipped for heads and tails of the sequences. (NONE, QUERY, TARGET, BOTH)")->transform(CLI::CheckedTransformer(ds_map, CLI::ignore_case));
+  app.add_option("-z,--tail", args.semiglobal_skipping_tail, "Specifies, for semi-global alignment, what should be skipped for heads and tails of the sequences. (NONE, QUERY, TARGET, BOTH)")->transform(CLI::CheckedTransformer(ds_map, CLI::ignore_case));
+
+  app.add_option("-k",            args.k_band,     "Band width in case 'banded' is selected.");
+  app.add_option("--second-best", args.secondBest, "Displays second best score (WITHOUT_START only)");
+
+
+  CLI11_PARSE(app, argc, argv);
+
   args.print();
 
   //--------------copy substitution scores to GPU--------------------
@@ -224,10 +265,14 @@ int main(int argc, char **argv) {
   gasal_copy_subst_scores(sub_scores);
 
   //Read input data
+  Timer timer_io;
+  timer_io.start();
   const auto input_data = ReadFastaQueryTargetPair(
     args.query_batch_fasta_filename,
     args.target_batch_fasta_filename
   );
+  timer_io.stop();
+  std::cerr<<"IO time = "<<timer_io.getSeconds()<<" s"<<std::endl;
 
   const auto maximum_sequence_length = std::max(input_data.a.maximum_sequence_length, input_data.b.maximum_sequence_length);
   const auto total_seqs = input_data.a.headers.size();
@@ -254,8 +299,6 @@ int main(int argc, char **argv) {
 
   std::cerr << "Processing..." << std::endl;
 
-  Timer total_time;
-  total_time.start();
   omp_set_num_threads(args.n_threads);
   std::vector<gasal_gpu_storage_v> gpu_storage_vecs;
   for (int z = 0; z < args.n_threads; z++) {
@@ -291,13 +334,9 @@ int main(int argc, char **argv) {
     std::cerr << "size of host_unpack_query is " << (input_data.a.total_sequence_bytes +7*total_seqs) / (NB_STREAMS) << std::endl ;
   #endif
 
-  Timer processing_time;
-  processing_time.start();
 
   #pragma omp parallel
   per_thread_processing(input_data, args, thread_seqs_idx, thread_n_seqs, thread_n_batchs, gpu_storage_vecs);
-
-  processing_time.stop();
 
   for (int z = 0; z < args.n_threads; z++) {
     gasal_destroy_streams(gpu_storage_vecs[z], args);
@@ -305,10 +344,9 @@ int main(int argc, char **argv) {
 
   total_time.stop();
 
-  std::cerr<<"GCUPS = "<<(input_data.total_cells_1_to_1()/(1e9)/processing_time.getSeconds())<<std::endl;
-
-  std::cerr << std::endl << "Done" << std::endl;
-  fprintf(stderr, "Total execution time (in milliseconds): %.3f\n", total_time.getSeconds());
+  std::cerr << "Total Cells = "<<input_data.total_cells_1_to_1()<<std::endl;
+  std::cerr << "Wall-time   = "<<total_time.getSeconds()<<std::endl;
+  std::cerr << "GCUPS       = "<<(input_data.total_cells_1_to_1()/total_time.getSeconds()/(1e9))<<std::endl;
 
   return 0;
 }
